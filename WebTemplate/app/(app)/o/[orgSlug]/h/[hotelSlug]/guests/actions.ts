@@ -1,10 +1,20 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import type { WizardState } from "@/components/ui/Wizard";
+
+// First zod message per user-facing field, for the wizard's inline errors.
+function fieldErrorsFrom(error: z.ZodError, keys: readonly string[]): Record<string, string> {
+  const flat = error.flatten().fieldErrors as Record<string, string[] | undefined>;
+  const out: Record<string, string> = {};
+  for (const k of keys) if (flat[k]?.[0]) out[k] = flat[k]![0];
+  return out;
+}
 
 const fields = {
   orgSlug: z.string().min(1),
@@ -24,7 +34,9 @@ function parseVip(formData: FormData): boolean {
 
 const createSchema = z.object(fields);
 
-export async function createGuestAction(formData: FormData): Promise<void> {
+const GUEST_KEYS = ["firstName", "lastName", "email", "phone", "countryCode", "notes"] as const;
+
+export async function createGuestAction(_prev: WizardState, formData: FormData): Promise<WizardState> {
   const result = createSchema.safeParse({
     orgSlug: formData.get("orgSlug"),
     hotelSlug: formData.get("hotelSlug"),
@@ -36,7 +48,7 @@ export async function createGuestAction(formData: FormData): Promise<void> {
     notes: (formData.get("notes") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    return { fieldErrors: fieldErrorsFrom(result.error, GUEST_KEYS) };
   }
   const p = result.data;
 
@@ -63,7 +75,7 @@ export async function createGuestAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !guest) {
-    throw new Error(error?.message ?? "Failed to create guest");
+    return { error: error?.message ?? "Failed to create guest" };
   }
 
   await writeAuditLog({
@@ -75,6 +87,14 @@ export async function createGuestAction(formData: FormData): Promise<void> {
     hotelId: hotel.id,
     after: { name: `${p.firstName} ${p.lastName}` },
   });
+
+  // Return to the caller (e.g. the reservation wizard) with the new guest
+  // preselected, or to the guests list. returnTo must be an internal /o/ path.
+  const returnTo = (formData.get("returnTo") as string | null) ?? "";
+  if (returnTo.startsWith("/o/")) {
+    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}guestId=${guest.id}`);
+  }
+  redirect(`/o/${organization.slug}/h/${hotel.slug}/guests`);
 }
 
 const updateSchema = z.object({ ...fields, guestId: z.string().min(1) });

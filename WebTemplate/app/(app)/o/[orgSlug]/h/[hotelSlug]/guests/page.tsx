@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
-import { createGuestAction, updateGuestAction } from "./actions";
+import { updateGuestAction } from "./actions";
 
 export default async function GuestsPage({
   params,
@@ -26,11 +27,31 @@ export default async function GuestsPage({
     throw new Error(`Failed to load guests: ${error.message}`);
   }
 
+  const base = `/o/${orgSlug}/h/${hotelSlug}/guests`;
+  const guestList = guests ?? [];
+
   return (
     <div className="pt--40">
-      <h4 className="title">{hotel.name} — Guests</h4>
+      <div className="spico-inline-form" style={{ justifyContent: "space-between" }}>
+        <h4 className="title">{hotel.name} — Guests</h4>
+        {canManage && (
+          <Link href={`${base}/new`} className="rts-btn btn-primary">
+            Add guest
+          </Link>
+        )}
+      </div>
 
-      <table className="spico-table">
+      {guestList.length === 0 ? (
+        <div className="spico-panel">
+          <p className="spico-muted">No guests yet — add the first one to start taking bookings.</p>
+          {canManage && (
+            <Link href={`${base}/new`} className="rts-btn btn-primary">
+              Add guest
+            </Link>
+          )}
+        </div>
+      ) : (
+        <table className="spico-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -42,7 +63,7 @@ export default async function GuestsPage({
           </tr>
         </thead>
         <tbody>
-          {(guests ?? []).map((g) => (
+          {guestList.map((g) => (
             <tr key={g.id}>
               {canManage ? (
                 <td colSpan={5}>
@@ -76,52 +97,8 @@ export default async function GuestsPage({
               )}
             </tr>
           ))}
-          {(guests ?? []).length === 0 && (
-            <tr>
-              <td colSpan={canManage ? 6 : 5}>No guests yet.</td>
-            </tr>
-          )}
         </tbody>
       </table>
-
-      {canManage && (
-        <>
-          <h5 className="title mt--30">Add a guest</h5>
-          <form action={createGuestAction} className="spico-panel spico-settings-form">
-            <input type="hidden" name="orgSlug" value={orgSlug} />
-            <input type="hidden" name="hotelSlug" value={hotelSlug} />
-            <div className="input-wrapper">
-              <label htmlFor="g-first">First name</label>
-              <input id="g-first" name="firstName" required maxLength={120} />
-            </div>
-            <div className="input-wrapper">
-              <label htmlFor="g-last">Last name</label>
-              <input id="g-last" name="lastName" required maxLength={120} />
-            </div>
-            <div className="input-wrapper">
-              <label htmlFor="g-email">Email</label>
-              <input id="g-email" name="email" type="email" />
-            </div>
-            <div className="input-wrapper">
-              <label htmlFor="g-phone">Phone</label>
-              <input id="g-phone" name="phone" />
-            </div>
-            <div className="input-wrapper">
-              <label htmlFor="g-cc">Country code (2 letters)</label>
-              <input id="g-cc" name="countryCode" maxLength={2} placeholder="e.g. DE" />
-            </div>
-            <label className="spico-muted">
-              <input type="checkbox" name="vip" /> VIP guest
-            </label>
-            <div className="input-wrapper">
-              <label htmlFor="g-notes">Notes</label>
-              <textarea id="g-notes" name="notes" rows={2} maxLength={2000} />
-            </div>
-            <button type="submit" className="rts-btn btn-primary">
-              Add guest
-            </button>
-          </form>
-        </>
       )}
     </div>
   );

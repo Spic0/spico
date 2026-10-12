@@ -7,23 +7,21 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/authz";
 import { writeAuditLog } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
+import type { WizardState } from "@/components/ui/Wizard";
 
 const createOrgSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(120),
 });
 
-export interface CreateOrgState {
-  error?: string;
-}
-
 export async function createOrganizationAction(
-  _prevState: CreateOrgState,
+  _prevState: WizardState,
   formData: FormData,
-): Promise<CreateOrgState> {
+): Promise<WizardState> {
   const user = await requireUser();
   const parsed = createOrgSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    const fe = parsed.error.flatten().fieldErrors;
+    return { fieldErrors: { name: fe.name?.[0] ?? "Invalid input" } };
   }
 
   const supabase = await createClient();

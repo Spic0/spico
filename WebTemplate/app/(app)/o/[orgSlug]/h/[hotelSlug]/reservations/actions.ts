@@ -8,6 +8,7 @@ import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib
 import { writeAuditLog } from "@/lib/audit";
 import { OCCUPYING_STATUSES, generateConfirmationCode, nightsBetween } from "@/lib/pms";
 import { emitWebhookEvent } from "@/lib/webhooks";
+import type { WizardState } from "@/components/ui/Wizard";
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
@@ -54,7 +55,9 @@ const createSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export async function createReservationAction(formData: FormData): Promise<void> {
+const RESERVATION_KEYS = ["guestId", "roomTypeId", "ratePlanId", "checkInDate", "checkOutDate", "notes"] as const;
+
+export async function createReservationAction(_prev: WizardState, formData: FormData): Promise<WizardState> {
   const result = createSchema.safeParse({
     orgSlug: formData.get("orgSlug"),
     hotelSlug: formData.get("hotelSlug"),
@@ -66,17 +69,20 @@ export async function createReservationAction(formData: FormData): Promise<void>
     notes: (formData.get("notes") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    const flat = result.error.flatten().fieldErrors as Record<string, string[] | undefined>;
+    const fieldErrors: Record<string, string> = {};
+    for (const k of RESERVATION_KEYS) if (flat[k]?.[0]) fieldErrors[k] = flat[k]![0];
+    return { fieldErrors };
   }
   const p = result.data;
 
   const adults = Number(formData.get("adults") ?? 1);
   const children = Number(formData.get("children") ?? 0);
-  if (!Number.isInteger(adults) || adults < 1 || adults > 20) throw new Error("Adults must be between 1 and 20");
-  if (!Number.isInteger(children) || children < 0 || children > 20) throw new Error("Children must be between 0 and 20");
+  if (!Number.isInteger(adults) || adults < 1 || adults > 20) return { fieldErrors: { adults: "Adults must be between 1 and 20" } };
+  if (!Number.isInteger(children) || children < 0 || children > 20) return { fieldErrors: { children: "Children must be between 0 and 20" } };
 
   const nights = nightsBetween(p.checkInDate, p.checkOutDate);
-  if (nights < 1) throw new Error("Check-out must be after check-in");
+  if (nights < 1) return { fieldErrors: { checkOutDate: "Check-out must be after check-in" } };
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
   const hotel = await getHotelBySlugOrNotFound(organization.id, p.hotelSlug);
@@ -89,8 +95,8 @@ export async function createReservationAction(formData: FormData): Promise<void>
     supabase.from("guests").select("id").eq("id", p.guestId).eq("hotel_id", hotel.id).single(),
     supabase.from("room_types").select("id, base_rate").eq("id", p.roomTypeId).eq("hotel_id", hotel.id).single(),
   ]);
-  if (!guest) throw new Error("Guest does not belong to this hotel");
-  if (!roomType) throw new Error("Room type does not belong to this hotel");
+  if (!guest) return { fieldErrors: { guestId: "Guest does not belong to this hotel" } };
+  if (!roomType) return { fieldErrors: { roomTypeId: "Room type does not belong to this hotel" } };
 
   let nightly = Number(roomType.base_rate);
   if (p.ratePlanId) {
@@ -100,13 +106,13 @@ export async function createReservationAction(formData: FormData): Promise<void>
       .eq("id", p.ratePlanId)
       .eq("hotel_id", hotel.id)
       .single();
-    if (!plan || plan.room_type_id !== p.roomTypeId) throw new Error("Rate plan does not match the room type");
+    if (!plan || plan.room_type_id !== p.roomTypeId) return { fieldErrors: { ratePlanId: "Rate plan does not match the room type" } };
     nightly = Number(plan.nightly_amount);
   }
 
   const available = await roomTypeAvailability(supabase, hotel.id, p.roomTypeId, p.checkInDate, p.checkOutDate);
   if (available <= 0) {
-    throw new Error("No availability for this room type on the selected dates");
+    return { fieldErrors: { roomTypeId: "No availability for this room type on the selected dates" } };
   }
 
   // M11: per-night total, honoring any rate_plan_seasons overrides for
@@ -118,7 +124,7 @@ export async function createReservationAction(formData: FormData): Promise<void>
     p_check_in: p.checkInDate,
     p_check_out: p.checkOutDate,
   });
-  if (pricingError) throw new Error(pricingError.message);
+  if (pricingError) return { error: pricingError.message };
   const totalAmount = Math.round(Number(nightlyTotal) * 100) / 100;
 
   let reservationId: string | null = null;
@@ -148,9 +154,9 @@ export async function createReservationAction(formData: FormData): Promise<void>
       break;
     }
     if (error?.code === "23505") continue; // confirmation_code collision — retry
-    throw new Error(error?.message ?? "Failed to create reservation");
+    return { error: error?.message ?? "Failed to create reservation" };
   }
-  if (!reservationId) throw new Error("Failed to create reservation after multiple attempts");
+  if (!reservationId) return { error: "Failed to create reservation after multiple attempts" };
 
   // M11: real folio with per-night room-charge line items. Best-effort — a
   // folio hiccup must not undo an already-created, real reservation; staff

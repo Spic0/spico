@@ -468,3 +468,198 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-subtle);
 }
+
+// ---------------------------------------------------------------------------
+// Setup wizard (components/ui/Wizard.tsx). Token-driven, theme-aware. Calm,
+// single-column (~560px) with the step intro in a soft info box and hints
+// muted under each field. Tabs on desktop; a compact "Step X of N" bar < 768px.
+// ---------------------------------------------------------------------------
+// Standalone wizard pages with no sidebar (e.g. organizations/new) centre the
+// column; wizards inside the hotel/org shell just sit in the content area.
+.spico-wizard-page {
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.spico-wizard {
+  max-width: 640px;
+
+  .input-wrapper {
+    max-width: 560px;
+  }
+}
+
+.spico-wizard-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-4);
+}
+
+.spico-wizard-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--text-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+
+  &:hover {
+    background: var(--surface-2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+
+  &.is-active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  .spico-wizard-tab-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  &.is-active .spico-wizard-tab-num {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  .spico-wizard-tab-mark {
+    font-weight: 700;
+
+    &.is-ok {
+      color: var(--status-success-fg);
+    }
+
+    &.is-error {
+      color: var(--status-danger-fg);
+    }
+  }
+}
+
+// Compact mobile step indicator — hidden on desktop.
+.spico-wizard-steps-mobile {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.spico-wizard-dots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.spico-wizard-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+
+  &.on {
+    background: var(--color-primary);
+  }
+}
+
+.spico-wizard-intro {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  font-size: 14px;
+  margin-bottom: var(--space-4);
+}
+
+.spico-wizard-hint {
+  font-size: 13px;
+  display: block;
+}
+
+.spico-wizard-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-4);
+}
+
+.spico-wizard-review-group {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.spico-wizard-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.spico-wizard-review-list {
+  margin: 0;
+}
+
+.spico-wizard-review-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: var(--space-3);
+  padding: 3px 0;
+
+  dt {
+    font-size: 13px;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-strong);
+  }
+}
+
+.spico-wizard-nav {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 767px) {
+  .spico-wizard-tabs {
+    display: none;
+  }
+
+  .spico-wizard-steps-mobile {
+    display: flex;
+  }
+
+  .spico-wizard-review-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
