@@ -47,6 +47,14 @@
 .left-side-bar .bottom-user .user-wrapper .info span {
   font-size: 13px;
   color: var(--text-muted);
+  // Template styles any .user-wrapper span as an absolute-positioned badge
+  // (notification count), which made the email overlap the user's name.
+  position: static;
+  display: block;
+  padding: 0;
+  background: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spico-sidebar-avatar {
@@ -412,4 +420,83 @@
     margin: 10px 0 0;
     color: var(--text-body);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard chrome fixes (ui/sidebar-header-buttons). These override ported
+// template rules of equal/higher specificity; spico.scss loads last so they
+// win without !important. Related components: components/layout/*.
+// ---------------------------------------------------------------------------
+
+// Collapsed sidebar: pull the content area in to the 60px rail. The template
+// only ever toggled `.collapsed` on the sidebar itself, never on the sibling
+// content wrapper, so it kept its full 305px sidebar offset when collapsed.
+.left-side-bar.collapsed + .main-center-content-m-left {
+  margin-left: 60px;
+}
+
+// Collapsed sidebar: the label <p> is display:none, so each nav link gets an
+// accessible name (aria-label) and a hover/focus tooltip (data-tooltip) from
+// LeftSidebar.tsx. Same specificity as the template's `::after { display:block }`.
+.dash-board-main-wrapper .left-side-bar.collapsed .single-menu-wrapper .single-menu {
+  position: relative;
+
+  &::after {
+    content: none;
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-inverse);
+    color: var(--text-on-inverse);
+    font-size: 13px;
+    white-space: nowrap;
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+    pointer-events: none;
+  }
+}
+
+// Top-bar avatar: center the primary ring. The action slot draws its own 1px
+// border + hover fill (for the icon buttons); the avatar instead IS the ring,
+// so drop the slot border/hover and size the avatar button as a centered 40px
+// circle. Root cause was the default button padding plus a second border.
+.header-right .single_action__haeader.user_avatar__information {
+  border: none;
+
+  &:hover {
+    background: transparent;
+  }
+
+  .avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 2px;
+    background: none;
+    color: var(--color-primary);
+
+    i {
+      font-size: 32px;
+      line-height: 1;
+      color: inherit;
+    }
+  }
+}
+
+// The template's hover/active rules recolor SVG `path` fills, but Spico uses
+// Font Awesome <i> glyphs — keep them legible (#fff) on the primary-blue
+// hover (header actions) and collapsed (sidebar toggle) backgrounds.
+.header-right .single_action__haeader:hover i,
+.left-side-open-clouse.collapsed i {
+  color: #fff;
 }

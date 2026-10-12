@@ -44,7 +44,13 @@ export function LeftSidebar({ sections, userFullName, userEmail }: LeftSidebarPr
             {section.items.map((item) => {
               const active = item.href === activeHref;
               return (
-                <Link key={item.href} href={item.href} className={`single-menu ${active ? "active" : ""}`}>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`single-menu ${active ? "active" : ""}`}
+                  aria-label={item.label}
+                  data-tooltip={item.label}
+                >
                   <div className="icon">
                     <i className={`fa-solid ${item.icon}`} aria-hidden="true" />
                   </div>
