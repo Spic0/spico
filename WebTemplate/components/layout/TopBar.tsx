@@ -59,7 +59,7 @@ export function TopBar({ userFullName, userEmail, homeHref }: TopBarProps) {
                   aria-expanded={profileOpen}
                   aria-label="Open account menu"
                 >
-                  <i className="fa-solid fa-circle-user" aria-hidden="true" style={{ fontSize: 28 }} />
+                  <i className="fa-solid fa-circle-user" aria-hidden="true" />
                 </button>
                 <div
                   className="user_information_main_wrapper"

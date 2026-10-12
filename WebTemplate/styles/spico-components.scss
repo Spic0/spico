@@ -35,6 +35,19 @@
     pointer-events: none;
   }
 
+  // Primary: the template's .rts-btn.btn-primary only sets a background, so the
+  // label inherited the link colour and was nearly invisible on the blue fill.
+  // White text on --color-primary is ~6.5:1, comfortably past WCAG AA.
+  &.btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+
+    &:hover,
+    &:focus-visible {
+      color: #fff;
+    }
+  }
+
   // Secondary: quiet, bordered. For confirm/apply actions that aren't the
   // primary CTA (row "Update", "Assign", filter apply). `.btn-border` is an
   // alias — the template markup used it widely but never defined it, so those
