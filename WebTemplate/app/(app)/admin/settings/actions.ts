@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const PLATFORM_SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -22,7 +23,8 @@ export async function savePlatformSettingsAction(formData: FormData): Promise<vo
     announcementMessage: (formData.get("announcementMessage") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const maintenanceMode = formData.get("maintenanceMode") === "on";
@@ -39,8 +41,11 @@ export async function savePlatformSettingsAction(formData: FormData): Promise<vo
     })
     .eq("id", PLATFORM_SETTINGS_ID);
   if (error) {
-    throw new Error(error.message);
+    await flash("error", error.message);
+    return;
   }
+
+  await flash("success", "Platform settings saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

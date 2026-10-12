@@ -7,6 +7,7 @@ import { requirePermission, type CurrentUser } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { getChannelAdapter, type ChannelType } from "@/lib/inboxChannels";
+import { flash } from "@/lib/flash";
 
 // The acting user's membership in this hotel (hotel-scoped, else an org-wide
 // membership). Used as the message sender; may be null for a platform admin
@@ -43,7 +44,8 @@ export async function createConversationAction(formData: FormData): Promise<void
     body: formData.get("body"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -59,7 +61,8 @@ export async function createConversationAction(formData: FormData): Promise<void
     .eq("hotel_id", hotel.id)
     .single();
   if (!channel || channel.status !== "active") {
-    throw new Error("Choose an active channel that belongs to this hotel");
+    await flash("error", "Choose an active channel that belongs to this hotel");
+    return;
   }
 
   const { data: conversation, error } = await supabase
@@ -79,7 +82,8 @@ export async function createConversationAction(formData: FormData): Promise<void
     .single();
 
   if (error || !conversation) {
-    throw new Error(error?.message ?? "Failed to create conversation");
+    await flash("error", error?.message ?? "Failed to create conversation");
+    return;
   }
 
   // Stub adapter: records the outbound message, transmits nothing.
@@ -98,7 +102,8 @@ export async function createConversationAction(formData: FormData): Promise<void
     delivery_status: send.deliveryStatus,
   });
   if (msgError) {
-    throw new Error(msgError.message);
+    await flash("error", msgError.message);
+    return;
   }
 
   await writeAuditLog({
@@ -111,6 +116,7 @@ export async function createConversationAction(formData: FormData): Promise<void
     after: { channel_id: channel.id, guest_identifier: parsed.guestIdentifier ?? null },
   });
 
+  await flash("success", "Message sent");
   redirect(`/o/${organization.slug}/h/${hotel.slug}/inbox/${conversation.id}`);
 }
 
@@ -129,7 +135,8 @@ export async function sendReplyAction(formData: FormData): Promise<void> {
     body: formData.get("body"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -145,7 +152,8 @@ export async function sendReplyAction(formData: FormData): Promise<void> {
     .eq("hotel_id", hotel.id)
     .single();
   if (!conversation) {
-    throw new Error("Conversation not found");
+    await flash("error", "Conversation not found");
+    return;
   }
 
   const { data: channel } = await supabase
@@ -169,7 +177,8 @@ export async function sendReplyAction(formData: FormData): Promise<void> {
     delivery_status: send.deliveryStatus,
   });
   if (msgError) {
-    throw new Error(msgError.message);
+    await flash("error", msgError.message);
+    return;
   }
 
   // Reopen a closed thread on reply, and refresh the preview.
@@ -181,6 +190,8 @@ export async function sendReplyAction(formData: FormData): Promise<void> {
       status: conversation.status === "closed" ? "open" : conversation.status,
     })
     .eq("id", conversation.id);
+
+  await flash("success", "Reply sent");
 }
 
 const statusSchema = z.object({
@@ -198,7 +209,8 @@ export async function setConversationStatusAction(formData: FormData): Promise<v
     status: formData.get("status"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -215,8 +227,11 @@ export async function setConversationStatusAction(formData: FormData): Promise<v
     .select("id")
     .single();
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to change status");
+    await flash("error", error?.message ?? "Failed to change status");
+    return;
   }
+
+  await flash("success", `Conversation ${parsed.status}`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -248,7 +263,8 @@ export async function assignConversationAction(formData: FormData): Promise<void
     priority: formData.get("priority"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -266,7 +282,10 @@ export async function assignConversationAction(formData: FormData): Promise<void
       .eq("id", parsed.assigneeMembershipId)
       .eq("organization_id", organization.id)
       .single();
-    if (!data) throw new Error("Assignee is not a member of this organization");
+    if (!data) {
+      await flash("error", "Assignee is not a member of this organization");
+      return;
+    }
   }
   if (parsed.assignedDepartmentId) {
     const { data } = await supabase
@@ -275,7 +294,10 @@ export async function assignConversationAction(formData: FormData): Promise<void
       .eq("id", parsed.assignedDepartmentId)
       .eq("hotel_id", hotel.id)
       .single();
-    if (!data) throw new Error("Department does not belong to this hotel");
+    if (!data) {
+      await flash("error", "Department does not belong to this hotel");
+      return;
+    }
   }
 
   const { data: updated, error } = await supabase
@@ -290,8 +312,11 @@ export async function assignConversationAction(formData: FormData): Promise<void
     .select("id")
     .single();
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update assignment");
+    await flash("error", error?.message ?? "Failed to update assignment");
+    return;
   }
+
+  await flash("success", "Assignment updated");
 
   await writeAuditLog({
     actorProfileId: user.id,

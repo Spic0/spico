@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { processStubPayment } from "@/lib/billing";
+import { flash } from "@/lib/flash";
 
 const schema = z.object({
   orgSlug: z.string().min(1),
@@ -18,7 +19,8 @@ export async function changePlanAction(formData: FormData): Promise<void> {
     planId: formData.get("planId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -28,7 +30,8 @@ export async function changePlanAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: plan } = await supabase.from("plans").select("id, key, name").eq("id", p.planId).eq("status", "active").single();
   if (!plan) {
-    throw new Error("Selected plan is not available");
+    await flash("error", "Selected plan is not available");
+    return;
   }
 
   const { data: before } = await supabase
@@ -46,8 +49,11 @@ export async function changePlanAction(formData: FormData): Promise<void> {
     .update({ plan_id: plan.id, status: "active", updated_by: user.id })
     .eq("organization_id", organization.id);
   if (error) {
-    throw new Error(error.message);
+    await flash("error", error.message);
+    return;
   }
+
+  await flash("success", `Plan changed to ${plan.name}`);
 
   await writeAuditLog({
     actorProfileId: user.id,

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const toggleSchema = z.object({
   orgSlug: z.string().min(1),
@@ -21,7 +22,8 @@ export async function toggleAgentKnowledgeAction(formData: FormData): Promise<vo
     enabled: formData.get("enabled"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -46,8 +48,11 @@ export async function toggleAgentKnowledgeAction(formData: FormData): Promise<vo
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update knowledge base setting");
+    await flash("error", error?.message ?? "Failed to update knowledge base setting");
+    return;
   }
+
+  await flash("success", nextEnabled ? "Knowledge base enabled" : "Knowledge base disabled");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -97,7 +102,8 @@ export async function addAgentKnowledgeSourceAction(formData: FormData): Promise
     articleId: (formData.get("articleId") as string | null) || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -140,8 +146,11 @@ export async function addAgentKnowledgeSourceAction(formData: FormData): Promise
     .single();
 
   if (error || !inserted) {
-    throw new Error(error?.message ?? "Failed to add knowledge source (it may already be assigned)");
+    await flash("error", error?.message ?? "Failed to add knowledge source (it may already be assigned)");
+    return;
   }
+
+  await flash("success", "Knowledge source added");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -169,7 +178,8 @@ export async function removeAgentKnowledgeSourceAction(formData: FormData): Prom
     sourceId: formData.get("sourceId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -191,8 +201,11 @@ export async function removeAgentKnowledgeSourceAction(formData: FormData): Prom
     .single();
 
   if (error || !deleted) {
-    throw new Error(error?.message ?? "Failed to remove knowledge source");
+    await flash("error", error?.message ?? "Failed to remove knowledge source");
+    return;
   }
+
+  await flash("success", "Knowledge source removed");
 
   await writeAuditLog({
     actorProfileId: user.id,

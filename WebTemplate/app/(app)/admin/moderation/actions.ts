@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 // Any platform role (moderator/admin/superadmin) can raise a flag — this is
 // Platform Moderator's one genuinely new, actionable capability as of M10 (it
@@ -26,7 +27,8 @@ export async function raiseModerationFlagAction(formData: FormData): Promise<voi
     reason: formData.get("reason"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -37,7 +39,8 @@ export async function raiseModerationFlagAction(formData: FormData): Promise<voi
   const table = p.targetType === "organization" ? "organizations" : "hotels";
   const { data: target } = await supabase.from(table).select("id").eq("id", p.targetId).single();
   if (!target) {
-    throw new Error(`${p.targetType === "organization" ? "Organization" : "Hotel"} not found`);
+    await flash("error", `${p.targetType === "organization" ? "Organization" : "Hotel"} not found`);
+    return;
   }
 
   const { data: flag, error } = await supabase
@@ -46,8 +49,11 @@ export async function raiseModerationFlagAction(formData: FormData): Promise<voi
     .select("id")
     .single();
   if (error || !flag) {
-    throw new Error(error?.message ?? "Failed to raise flag");
+    await flash("error", error?.message ?? "Failed to raise flag");
+    return;
   }
+
+  await flash("success", "Moderation flag raised");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -76,7 +82,8 @@ export async function resolveModerationFlagAction(formData: FormData): Promise<v
     resolutionNote: (formData.get("resolutionNote") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -85,7 +92,12 @@ export async function resolveModerationFlagAction(formData: FormData): Promise<v
     .from("platform_moderation_flags")
     .update({ status: "resolved", resolved_by: user.id, resolved_at: new Date().toISOString(), resolution_note: p.resolutionNote || null })
     .eq("id", p.flagId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Flag resolved");
 
   await writeAuditLog({
     actorProfileId: user.id,

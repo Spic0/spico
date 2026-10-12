@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { formatPlanPrice } from "@/lib/billing";
 import { createPlanAction, setPlanStatusAction } from "./actions";
 
@@ -16,7 +17,7 @@ export default async function PlansAdminPage() {
 
   return (
     <div className="pt--40">
-      <h4 className="title">Plan catalog</h4>
+      <PageHeader title="Plans" subtitle="Platform administration" />
       <p className="spico-muted">
         Platform-wide pricing tiers. Only superadmin can change these — a price change affects every organization.
       </p>

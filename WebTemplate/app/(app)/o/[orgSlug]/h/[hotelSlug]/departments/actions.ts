@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const codeSchema = z
   .string()
@@ -29,7 +30,8 @@ export async function createDepartmentAction(formData: FormData): Promise<void> 
     description: (formData.get("description") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -54,8 +56,11 @@ export async function createDepartmentAction(formData: FormData): Promise<void> 
     .single();
 
   if (error || !department) {
-    throw new Error(error?.message ?? "Failed to create department (code may already be in use)");
+    await flash("error", error?.message ?? "Failed to create department (code may already be in use)");
+    return;
   }
+
+  await flash("success", `Department ${parsed.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -87,7 +92,8 @@ export async function updateDepartmentAction(formData: FormData): Promise<void> 
     description: (formData.get("description") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -113,8 +119,11 @@ export async function updateDepartmentAction(formData: FormData): Promise<void> 
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update department (code may already be in use)");
+    await flash("error", error?.message ?? "Failed to update department (code may already be in use)");
+    return;
   }
+
+  await flash("success", `Department ${parsed.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -143,7 +152,8 @@ export async function setDepartmentStatusAction(formData: FormData): Promise<voi
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -169,10 +179,14 @@ export async function setDepartmentStatusAction(formData: FormData): Promise<voi
     .single();
 
   if (error || !updated) {
-    throw new Error(
+    await flash(
+      "error",
       error?.message ?? "Failed to change department status (an active department with this code may already exist)",
     );
+    return;
   }
+
+  await flash("success", parsed.nextStatus === "active" ? "Department activated" : "Department deactivated");
 
   await writeAuditLog({
     actorProfileId: user.id,

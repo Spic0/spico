@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const codeSchema = z
   .string()
@@ -44,7 +45,8 @@ export async function createRatePlanAction(formData: FormData): Promise<void> {
     code: formData.get("code"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const nightlyAmount = parseMoney(formData.get("nightlyAmount"));
@@ -73,8 +75,11 @@ export async function createRatePlanAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !plan) {
-    throw new Error(error?.message ?? "Failed to create rate plan (code may already be in use)");
+    await flash("error", error?.message ?? "Failed to create rate plan (code may already be in use)");
+    return;
   }
+
+  await flash("success", `Rate plan ${p.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -104,7 +109,8 @@ export async function updateRatePlanAction(formData: FormData): Promise<void> {
     status: formData.get("status"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const nightlyAmount = parseMoney(formData.get("nightlyAmount"));
@@ -129,8 +135,11 @@ export async function updateRatePlanAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update rate plan");
+    await flash("error", error?.message ?? "Failed to update rate plan");
+    return;
   }
+
+  await flash("success", `Rate plan ${p.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,

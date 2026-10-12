@@ -1,10 +1,18 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
+
+// Inline-edit actions report via a flash toast instead of an error page: an
+// expected failure flashes and redirects back to the list (same URL); success
+// flashes and the form action's auto-refresh shows it.
+const roomsPath = (formData: FormData) =>
+  `/o/${formData.get("orgSlug")}/h/${formData.get("hotelSlug")}/pms/rooms`;
 
 async function assertRoomTypeInHotel(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -94,7 +102,8 @@ export async function updateRoomAction(formData: FormData): Promise<void> {
     status: formData.get("status"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    redirect(roomsPath(formData));
   }
   const p = result.data;
 
@@ -120,7 +129,8 @@ export async function updateRoomAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update room");
+    await flash("error", error?.message ?? "Failed to update room");
+    redirect(roomsPath(formData));
   }
 
   await writeAuditLog({
@@ -132,4 +142,7 @@ export async function updateRoomAction(formData: FormData): Promise<void> {
     hotelId: hotel.id,
     after: { room_number: p.roomNumber, housekeeping_status: p.housekeepingStatus, status: p.status },
   });
+
+  await flash("success", `Room ${p.roomNumber} saved`);
+  redirect(roomsPath(formData));
 }

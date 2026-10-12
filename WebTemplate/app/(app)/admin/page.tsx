@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { setOrganizationStatusAction } from "./actions";
 
@@ -19,7 +20,7 @@ export default async function PlatformAdminPage() {
 
   return (
     <div className="pt--40">
-      <h4 className="title">Platform Administration</h4>
+      <PageHeader title="Platform Administration" subtitle="Platform" />
       <p>All organizations on Spico.</p>
 
       <table className="spico-table">

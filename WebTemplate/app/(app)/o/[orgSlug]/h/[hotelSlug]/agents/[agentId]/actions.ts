@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const agentTypeValues = [
   "receptionist",
@@ -55,7 +56,8 @@ export async function updateAgentOverviewAction(formData: FormData): Promise<voi
     testModeEnabled: formData.get("testModeEnabled") === "on",
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -84,8 +86,11 @@ export async function updateAgentOverviewAction(formData: FormData): Promise<voi
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Not authorized to update this agent (name may already be in use)");
+    await flash("error", error?.message ?? "Not authorized to update this agent (name may already be in use)");
+    return;
   }
+
+  await flash("success", `${parsed.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -116,7 +121,8 @@ async function setAgentStatus(formData: FormData, permission: "ai_agents.activat
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -134,8 +140,20 @@ async function setAgentStatus(formData: FormData, permission: "ai_agents.activat
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Not authorized to change this agent's status");
+    await flash("error", error?.message ?? "Not authorized to change this agent's status");
+    return;
   }
+
+  await flash(
+    "success",
+    parsed.nextStatus === "archived"
+      ? "Agent archived"
+      : parsed.nextStatus === "active"
+        ? "Agent activated"
+        : parsed.nextStatus === "inactive"
+          ? "Agent deactivated"
+          : "Agent set to draft",
+  );
 
   await writeAuditLog({
     actorProfileId: user.id,

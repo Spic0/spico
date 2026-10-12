@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +27,7 @@ export default async function BookingSettingsPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">{hotel.name} — Booking Engine</h4>
+      <PageHeader title="Booking Engine" subtitle={`${hotel.name} · ${organization.name}`} />
       <p className="spico-muted">
         The public booking page lets guests check availability and request a booking. Requests arrive as{" "}
         <strong>pending</strong> reservations in the Reservations screen for staff to confirm. Availability and prices

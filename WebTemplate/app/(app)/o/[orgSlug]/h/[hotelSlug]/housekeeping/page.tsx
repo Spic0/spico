@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -61,7 +62,7 @@ export default async function HousekeepingPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">{hotel.name} — Housekeeping</h4>
+      <PageHeader title="Housekeeping" subtitle={`${hotel.name} · ${organization.name}`} />
 
       <div className="spico-tab-nav">
         {FILTERS.map((f) => (

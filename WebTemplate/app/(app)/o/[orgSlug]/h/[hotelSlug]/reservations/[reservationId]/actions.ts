@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 async function getFolioForReservation(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -36,7 +37,8 @@ export async function addFolioChargeAction(formData: FormData): Promise<void> {
     unitAmount: formData.get("unitAmount"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -46,7 +48,10 @@ export async function addFolioChargeAction(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const folio = await getFolioForReservation(supabase, hotel.id, p.reservationId);
-  if (!folio) throw new Error("No folio exists for this reservation yet");
+  if (!folio) {
+    await flash("error", "No folio exists for this reservation yet");
+    return;
+  }
 
   const { data: line, error } = await supabase
     .from("folio_line_items")
@@ -60,7 +65,12 @@ export async function addFolioChargeAction(formData: FormData): Promise<void> {
     })
     .select("id")
     .single();
-  if (error || !line) throw new Error(error?.message ?? "Failed to add charge");
+  if (error || !line) {
+    await flash("error", error?.message ?? "Failed to add charge");
+    return;
+  }
+
+  await flash("success", "Charge added");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -92,7 +102,8 @@ export async function recordFolioPaymentAction(formData: FormData): Promise<void
     reference: (formData.get("reference") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -102,7 +113,10 @@ export async function recordFolioPaymentAction(formData: FormData): Promise<void
 
   const supabase = await createClient();
   const folio = await getFolioForReservation(supabase, hotel.id, p.reservationId);
-  if (!folio) throw new Error("No folio exists for this reservation yet");
+  if (!folio) {
+    await flash("error", "No folio exists for this reservation yet");
+    return;
+  }
 
   const { data: payment, error } = await supabase
     .from("folio_payments")
@@ -115,7 +129,12 @@ export async function recordFolioPaymentAction(formData: FormData): Promise<void
     })
     .select("id")
     .single();
-  if (error || !payment) throw new Error(error?.message ?? "Failed to record payment");
+  if (error || !payment) {
+    await flash("error", error?.message ?? "Failed to record payment");
+    return;
+  }
+
+  await flash("success", "Payment recorded");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -141,7 +160,8 @@ export async function closeFolioAction(formData: FormData): Promise<void> {
     reservationId: formData.get("reservationId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -151,13 +171,21 @@ export async function closeFolioAction(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const folio = await getFolioForReservation(supabase, hotel.id, p.reservationId);
-  if (!folio) throw new Error("No folio exists for this reservation yet");
+  if (!folio) {
+    await flash("error", "No folio exists for this reservation yet");
+    return;
+  }
 
   const { error } = await supabase
     .from("folios")
     .update({ status: "closed", closed_at: new Date().toISOString(), closed_by: user.id })
     .eq("id", folio.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Folio closed");
 
   await writeAuditLog({
     actorProfileId: user.id,

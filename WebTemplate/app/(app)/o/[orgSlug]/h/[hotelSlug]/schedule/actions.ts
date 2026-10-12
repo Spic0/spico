@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -36,7 +37,8 @@ export async function updateBusinessHoursAction(formData: FormData): Promise<voi
   const orgSlug = formData.get("orgSlug");
   const hotelSlug = formData.get("hotelSlug");
   if (typeof orgSlug !== "string" || typeof hotelSlug !== "string") {
-    throw new Error("Invalid request");
+    await flash("error", "Invalid request");
+    return;
   }
 
   const organization = await getOrganizationBySlugOrNotFound(orgSlug);
@@ -67,7 +69,8 @@ export async function updateBusinessHoursAction(formData: FormData): Promise<voi
       close2: timeOrUndefined(formData.get(`day_${day}_close2`)),
     });
     if (!parsed.success) {
-      throw new Error(`Day ${day}: ${parsed.error.issues[0]?.message ?? "invalid schedule"}`);
+      await flash("error", `Day ${day}: ${parsed.error.issues[0]?.message ?? "invalid schedule"}`);
+      return;
     }
     const d = parsed.data;
 
@@ -101,7 +104,8 @@ export async function updateBusinessHoursAction(formData: FormData): Promise<voi
     .upsert(upsertRows, { onConflict: "hotel_id,day_of_week,shift_index" });
 
   if (upsertError) {
-    throw new Error(`Failed to save business hours: ${upsertError.message}`);
+    await flash("error", `Failed to save business hours: ${upsertError.message}`);
+    return;
   }
 
   if (shift2ToDelete.length > 0) {
@@ -113,9 +117,12 @@ export async function updateBusinessHoursAction(formData: FormData): Promise<voi
       .in("day_of_week", shift2ToDelete);
 
     if (deleteError) {
-      throw new Error(`Failed to clear removed shifts: ${deleteError.message}`);
+      await flash("error", `Failed to clear removed shifts: ${deleteError.message}`);
+      return;
     }
   }
+
+  await flash("success", "Business hours saved");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -158,7 +165,8 @@ export async function createHolidayAction(formData: FormData): Promise<void> {
     notes: timeOrUndefined(formData.get("notes")),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -187,8 +195,11 @@ export async function createHolidayAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !holiday) {
-    throw new Error(error?.message ?? "Failed to create holiday");
+    await flash("error", error?.message ?? "Failed to create holiday");
+    return;
   }
+
+  await flash("success", `Holiday ${parsed.name} added`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -214,7 +225,8 @@ export async function deleteHolidayAction(formData: FormData): Promise<void> {
     holidayId: formData.get("holidayId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -234,8 +246,11 @@ export async function deleteHolidayAction(formData: FormData): Promise<void> {
 
   const { error } = await supabase.from("hotel_holidays").delete().eq("id", parsed.holidayId);
   if (error) {
-    throw new Error(`Failed to delete holiday: ${error.message}`);
+    await flash("error", `Failed to delete holiday: ${error.message}`);
+    return;
   }
+
+  await flash("success", "Holiday removed");
 
   await writeAuditLog({
     actorProfileId: user.id,

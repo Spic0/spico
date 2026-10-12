@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { KB_DOCUMENT_MAX_BYTES, isAllowedKbMimeType } from "@/lib/knowledgeBase";
+import { flash } from "@/lib/flash";
 
 const KB_BUCKET = "kb-documents";
 const languageCode = z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/, "Invalid language code");
@@ -53,19 +54,23 @@ export async function uploadDocumentFileAction(formData: FormData): Promise<void
     categoryId: (formData.get("categoryId") as string | null) || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error("Please choose a file to upload");
+    await flash("error", "Please choose a file to upload");
+    return;
   }
   if (file.size > KB_DOCUMENT_MAX_BYTES) {
-    throw new Error("File exceeds the 25 MB limit");
+    await flash("error", "File exceeds the 25 MB limit");
+    return;
   }
   if (!isAllowedKbMimeType(file.type)) {
-    throw new Error("Unsupported file type. Allowed: PDF, TXT, Markdown, CSV, DOC, DOCX");
+    await flash("error", "Unsupported file type. Allowed: PDF, TXT, Markdown, CSV, DOC, DOCX");
+    return;
   }
 
   const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
@@ -89,7 +94,8 @@ export async function uploadDocumentFileAction(formData: FormData): Promise<void
     upsert: false,
   });
   if (uploadError) {
-    throw new Error(`Upload failed: ${uploadError.message}`);
+    await flash("error", `Upload failed: ${uploadError.message}`);
+    return;
   }
 
   const { data: document, error } = await supabase
@@ -119,8 +125,11 @@ export async function uploadDocumentFileAction(formData: FormData): Promise<void
   if (error || !document) {
     // Roll back the orphaned object so we never leave a file with no record.
     await supabase.storage.from(KB_BUCKET).remove([storagePath]);
-    throw new Error(error?.message ?? "Failed to save document record");
+    await flash("error", error?.message ?? "Failed to save document record");
+    return;
   }
+
+  await flash("success", `Document ${parsed.title} uploaded`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -154,7 +163,8 @@ export async function addDocumentUrlAction(formData: FormData): Promise<void> {
     sourceUrl: formData.get("sourceUrl"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -187,8 +197,11 @@ export async function addDocumentUrlAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !document) {
-    throw new Error(error?.message ?? "Failed to save document link");
+    await flash("error", error?.message ?? "Failed to save document link");
+    return;
   }
+
+  await flash("success", `Document ${parsed.title} linked`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -216,7 +229,8 @@ export async function setDocumentStatusAction(formData: FormData): Promise<void>
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -236,8 +250,11 @@ export async function setDocumentStatusAction(formData: FormData): Promise<void>
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to change document status");
+    await flash("error", error?.message ?? "Failed to change document status");
+    return;
   }
+
+  await flash("success", parsed.nextStatus === "active" ? "Document restored" : "Document archived");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -263,7 +280,8 @@ export async function deleteDocumentAction(formData: FormData): Promise<void> {
     documentId: formData.get("documentId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -291,8 +309,11 @@ export async function deleteDocumentAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !deleted) {
-    throw new Error(error?.message ?? "Failed to delete document");
+    await flash("error", error?.message ?? "Failed to delete document");
+    return;
   }
+
+  await flash("success", "Document deleted");
 
   if (before?.source_type === "file" && before.storage_path) {
     await supabase.storage.from(KB_BUCKET).remove([before.storage_path]);

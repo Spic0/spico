@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -40,7 +41,7 @@ export default async function ChannelsPage({
       <Link href={base} className="spico-muted">
         ← Back to inbox
       </Link>
-      <h4 className="title mt--10">Channels</h4>
+      <PageHeader title="Channels" subtitle={`${hotel.name} · Inbox`} />
       <p className="spico-muted">
         Every channel uses a stub provider — nothing is transmitted. Live provider connections arrive in a later
         milestone.

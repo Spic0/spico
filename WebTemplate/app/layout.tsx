@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "@/styles/main.scss";
+import { Toaster } from "@/components/layout/Toaster";
+import { FlashToasts } from "@/components/layout/FlashToasts";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -20,7 +22,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="light" className={spaceGrotesk.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+        <FlashToasts />
+      </body>
     </html>
   );
 }

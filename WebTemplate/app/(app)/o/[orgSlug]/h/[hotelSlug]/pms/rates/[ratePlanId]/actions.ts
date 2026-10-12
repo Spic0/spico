@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const createSchema = z.object({
   orgSlug: z.string().min(1),
@@ -27,11 +28,13 @@ export async function createRatePlanSeasonAction(formData: FormData): Promise<vo
     nightlyAmount: formData.get("nightlyAmount"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   if (p.dateEnd < p.dateStart) {
-    throw new Error("End date must be on or after the start date");
+    await flash("error", "End date must be on or after the start date");
+    return;
   }
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
@@ -40,7 +43,10 @@ export async function createRatePlanSeasonAction(formData: FormData): Promise<vo
 
   const supabase = await createClient();
   const { data: plan } = await supabase.from("rate_plans").select("id").eq("id", p.ratePlanId).eq("hotel_id", hotel.id).single();
-  if (!plan) throw new Error("Rate plan does not belong to this hotel");
+  if (!plan) {
+    await flash("error", "Rate plan does not belong to this hotel");
+    return;
+  }
 
   const { data: season, error } = await supabase
     .from("rate_plan_seasons")
@@ -56,7 +62,12 @@ export async function createRatePlanSeasonAction(formData: FormData): Promise<vo
     })
     .select("id")
     .single();
-  if (error || !season) throw new Error(error?.message ?? "Failed to create season");
+  if (error || !season) {
+    await flash("error", error?.message ?? "Failed to create season");
+    return;
+  }
+
+  await flash("success", `Season ${p.name} added`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -82,7 +93,8 @@ export async function deleteRatePlanSeasonAction(formData: FormData): Promise<vo
     seasonId: formData.get("seasonId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -92,7 +104,12 @@ export async function deleteRatePlanSeasonAction(formData: FormData): Promise<vo
 
   const supabase = await createClient();
   const { error } = await supabase.from("rate_plan_seasons").delete().eq("id", p.seasonId).eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Season removed");
 
   await writeAuditLog({
     actorProfileId: user.id,

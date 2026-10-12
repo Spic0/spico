@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { savePlatformSettingsAction } from "./actions";
 
 export default async function PlatformSettingsPage() {
@@ -15,7 +16,7 @@ export default async function PlatformSettingsPage() {
 
   return (
     <div className="pt--40">
-      <h4 className="title">Platform settings</h4>
+      <PageHeader title="Platform Settings" subtitle="Platform administration" />
       <p className="spico-muted">
         Global, deployment-wide configuration. <code>maintenance_mode</code>/<code>announcement_message</code> are
         stored but not yet read by any page (no maintenance banner exists yet) — see docs/roadmap.md.

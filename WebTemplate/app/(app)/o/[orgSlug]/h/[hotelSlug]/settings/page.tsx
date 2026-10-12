@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 import { HotelSettingsForm } from "./HotelSettingsForm";
@@ -14,7 +15,7 @@ export default async function HotelSettingsPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">{hotel.name} — Settings</h4>
+      <PageHeader title="Settings" subtitle={`${hotel.name} · ${organization.name}`} />
       <p className="spico-muted">Platform-level configuration is managed separately and never appears here.</p>
       <HotelSettingsForm hotel={hotel} orgSlug={orgSlug} hotelSlug={hotelSlug} />
     </div>

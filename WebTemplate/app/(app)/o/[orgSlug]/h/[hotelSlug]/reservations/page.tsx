@@ -12,6 +12,8 @@ import {
 } from "@/lib/pms";
 import { statusChipVariant } from "@/lib/statusChip";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ReservationDialog } from "./ReservationDialog";
 
 const FILTERS = [{ value: "all", label: "All" }, ...RESERVATION_STATUSES];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -61,7 +63,7 @@ export default async function ReservationsPage({
   searchParams,
 }: {
   params: Promise<{ orgSlug: string; hotelSlug: string }>;
-  searchParams: Promise<{ status?: string; month?: string; day?: string }>;
+  searchParams: Promise<{ status?: string; month?: string; day?: string; create?: string; guestId?: string }>;
 }) {
   const { orgSlug, hotelSlug } = await params;
   const sp = await searchParams;
@@ -85,6 +87,20 @@ export default async function ReservationsPage({
   const rangeEnd = day > gridEnd ? day : gridEnd;
 
   const supabase = await createClient();
+
+  // Options for the "New reservation" wizard popup (only loaded when the user can create).
+  const [{ data: wizardGuests }, { data: wizardRoomTypes }, { data: wizardRatePlans }] = canManage
+    ? await Promise.all([
+        supabase.from("guests").select("id, first_name, last_name").eq("hotel_id", hotel.id).order("last_name").limit(500),
+        supabase.from("room_types").select("id, name, base_rate").eq("hotel_id", hotel.id).eq("status", "active").order("name"),
+        supabase
+          .from("rate_plans")
+          .select("id, name, room_type_id, nightly_amount")
+          .eq("hotel_id", hotel.id)
+          .eq("status", "active")
+          .order("name"),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   // One query for everything overlapping the visible range (respecting the
   // status filter), plus the existing full list below.
@@ -154,14 +170,24 @@ export default async function ReservationsPage({
 
   return (
     <div className="pt--40">
-      <div className="spico-inline-form" style={{ justifyContent: "space-between" }}>
-        <h4 className="title">{hotel.name} — Reservations</h4>
-        {canManage && (
-          <Link href={`${base}/new`} className="rts-btn btn-primary">
-            New reservation
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Reservations"
+        subtitle={`${hotel.name} · ${organization.name}`}
+        actions={
+          canManage ? (
+            <ReservationDialog
+              orgSlug={orgSlug}
+              hotelSlug={hotelSlug}
+              currency={hotel.default_currency}
+              guests={wizardGuests ?? []}
+              roomTypes={(wizardRoomTypes ?? []).map((t) => ({ ...t, base_rate: Number(t.base_rate) }))}
+              ratePlans={(wizardRatePlans ?? []).map((rp) => ({ ...rp, nightly_amount: Number(rp.nightly_amount) }))}
+              initialGuestId={sp.guestId}
+              defaultOpen={sp.create === "1"}
+            />
+          ) : undefined
+        }
+      />
 
       <div className="spico-tab-nav">
         {FILTERS.map((f) => (

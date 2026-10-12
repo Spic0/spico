@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { NEXT_STATUS, type HousekeepingTaskStatus } from "@/lib/housekeeping";
+import { flash } from "@/lib/flash";
 
 const createSchema = z.object({
   orgSlug: z.string().min(1),
@@ -28,7 +29,8 @@ export async function createHousekeepingTaskAction(formData: FormData): Promise<
     notes: (formData.get("notes") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -38,7 +40,10 @@ export async function createHousekeepingTaskAction(formData: FormData): Promise<
 
   const supabase = await createClient();
   const { data: room } = await supabase.from("rooms").select("id").eq("id", p.roomId).eq("hotel_id", hotel.id).single();
-  if (!room) throw new Error("Room does not belong to this hotel");
+  if (!room) {
+    await flash("error", "Room does not belong to this hotel");
+    return;
+  }
 
   if (p.assignedTo) {
     const { data: membership } = await supabase
@@ -47,7 +52,10 @@ export async function createHousekeepingTaskAction(formData: FormData): Promise<
       .eq("id", p.assignedTo)
       .eq("organization_id", organization.id)
       .single();
-    if (!membership) throw new Error("Assignee is not a member of this organization");
+    if (!membership) {
+      await flash("error", "Assignee is not a member of this organization");
+      return;
+    }
   }
 
   const { data: task, error } = await supabase
@@ -65,8 +73,11 @@ export async function createHousekeepingTaskAction(formData: FormData): Promise<
     .select("id")
     .single();
   if (error || !task) {
-    throw new Error(error?.message ?? "Failed to create task");
+    await flash("error", error?.message ?? "Failed to create task");
+    return;
   }
+
+  await flash("success", "Housekeeping task created");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -94,11 +105,15 @@ export async function advanceHousekeepingTaskAction(formData: FormData): Promise
     currentStatus: formData.get("currentStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const nextStatus = NEXT_STATUS[p.currentStatus as HousekeepingTaskStatus];
-  if (!nextStatus) throw new Error("This task has no further status to advance to");
+  if (!nextStatus) {
+    await flash("error", "This task has no further status to advance to");
+    return;
+  }
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
   const hotel = await getHotelBySlugOrNotFound(organization.id, p.hotelSlug);
@@ -122,8 +137,11 @@ export async function advanceHousekeepingTaskAction(formData: FormData): Promise
     .select("id, room_id")
     .single();
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to advance task (it may have already changed status)");
+    await flash("error", error?.message ?? "Failed to advance task (it may have already changed status)");
+    return;
   }
+
+  await flash("success", `Task marked ${nextStatus.replace("_", " ")}`);
 
   // A verified checkout_clean task means the room is ready — clear the
   // dirty flag so front desk sees it as clean again.

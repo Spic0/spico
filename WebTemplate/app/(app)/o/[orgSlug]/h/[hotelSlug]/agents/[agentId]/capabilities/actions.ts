@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { CAPABILITY_REGISTRY } from "@/lib/agentCapabilities";
+import { flash } from "@/lib/flash";
 
 const schema = z.object({
   orgSlug: z.string().min(1),
@@ -21,7 +22,8 @@ export async function updateAgentCapabilitiesAction(formData: FormData): Promise
     agentId: formData.get("agentId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -51,8 +53,11 @@ export async function updateAgentCapabilitiesAction(formData: FormData): Promise
     .upsert(rows, { onConflict: "agent_id,capability_key" });
 
   if (error) {
-    throw new Error(`Failed to save capabilities: ${error.message}`);
+    await flash("error", `Failed to save capabilities: ${error.message}`);
+    return;
   }
+
+  await flash("success", "Capabilities saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

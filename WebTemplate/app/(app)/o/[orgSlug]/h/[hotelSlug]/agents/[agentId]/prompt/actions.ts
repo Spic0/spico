@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 function textOrUndefined(value: FormDataEntryValue | null): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -52,7 +53,8 @@ export async function updateAgentPromptAction(formData: FormData): Promise<void>
     additionalInstructions: textOrUndefined(formData.get("additionalInstructions")),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -73,7 +75,8 @@ export async function updateAgentPromptAction(formData: FormData): Promise<void>
     .eq("agent_id", parsed.agentId)
     .eq("is_active", true);
   if (deactivateError) {
-    throw new Error(`Failed to save new prompt version: ${deactivateError.message}`);
+    await flash("error", `Failed to save new prompt version: ${deactivateError.message}`);
+    return;
   }
 
   const { error: insertError } = await supabase.from("ai_agent_prompt_versions").insert({
@@ -93,7 +96,8 @@ export async function updateAgentPromptAction(formData: FormData): Promise<void>
     created_by: user.id,
   });
   if (insertError) {
-    throw new Error(`Failed to save new prompt version: ${insertError.message}`);
+    await flash("error", `Failed to save new prompt version: ${insertError.message}`);
+    return;
   }
 
   const { error: agentError } = await supabase
@@ -101,8 +105,11 @@ export async function updateAgentPromptAction(formData: FormData): Promise<void>
     .update({ current_prompt_version: nextVersion, updated_by: user.id })
     .eq("id", parsed.agentId);
   if (agentError) {
-    throw new Error(`Prompt version saved but failed to update the agent's current version: ${agentError.message}`);
+    await flash("error", `Prompt version saved but failed to update the agent's current version: ${agentError.message}`);
+    return;
   }
+
+  await flash("success", `Prompt v${nextVersion} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -134,7 +141,8 @@ export async function restoreAgentPromptVersionAction(formData: FormData): Promi
     versionNumber: formData.get("versionNumber"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -157,7 +165,8 @@ export async function restoreAgentPromptVersionAction(formData: FormData): Promi
     .single();
 
   if (targetError || !target) {
-    throw new Error(targetError?.message ?? "Version not found");
+    await flash("error", targetError?.message ?? "Version not found");
+    return;
   }
 
   const nextVersion = agent.current_prompt_version + 1;
@@ -168,7 +177,8 @@ export async function restoreAgentPromptVersionAction(formData: FormData): Promi
     .eq("agent_id", parsed.agentId)
     .eq("is_active", true);
   if (deactivateError) {
-    throw new Error(`Failed to restore version: ${deactivateError.message}`);
+    await flash("error", `Failed to restore version: ${deactivateError.message}`);
+    return;
   }
 
   const { error: insertError } = await supabase.from("ai_agent_prompt_versions").insert({
@@ -179,7 +189,8 @@ export async function restoreAgentPromptVersionAction(formData: FormData): Promi
     created_by: user.id,
   });
   if (insertError) {
-    throw new Error(`Failed to restore version: ${insertError.message}`);
+    await flash("error", `Failed to restore version: ${insertError.message}`);
+    return;
   }
 
   const { error: agentError } = await supabase
@@ -187,8 +198,11 @@ export async function restoreAgentPromptVersionAction(formData: FormData): Promi
     .update({ current_prompt_version: nextVersion, updated_by: user.id })
     .eq("id", parsed.agentId);
   if (agentError) {
-    throw new Error(`Version restored but failed to update the agent's current version: ${agentError.message}`);
+    await flash("error", `Version restored but failed to update the agent's current version: ${agentError.message}`);
+    return;
   }
+
+  await flash("success", `Restored to new v${nextVersion}`);
 
   await writeAuditLog({
     actorProfileId: user.id,

@@ -1,13 +1,12 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/authz";
 import { writeAuditLog } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
-import type { WizardState } from "@/components/ui/Wizard";
+import type { WizardState } from "@/components/ui/WizardDialog";
 
 const createOrgSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(120),
@@ -79,5 +78,6 @@ export async function createOrganizationAction(
     after: { name: parsed.data.name, slug },
   });
 
-  redirect(`/o/${slug}`);
+  // WizardDialog handles success client-side: close, toast, then navigate.
+  return { ok: true, message: `${parsed.data.name} created`, redirectTo: `/o/${slug}` };
 }

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const schema = z.object({
   orgSlug: z.string().min(1),
@@ -25,13 +26,17 @@ export async function saveBookingSettingsAction(formData: FormData): Promise<voi
     terms: (formData.get("terms") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
   const minNights = parseNights(formData.get("minNights"), "Minimum nights", 1, 90);
   const maxNights = parseNights(formData.get("maxNights"), "Maximum nights", 1, 365);
-  if (maxNights < minNights) throw new Error("Maximum nights must be at least the minimum");
+  if (maxNights < minNights) {
+    await flash("error", "Maximum nights must be at least the minimum");
+    return;
+  }
   const enabled = formData.get("enabled") === "on";
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
@@ -53,8 +58,11 @@ export async function saveBookingSettingsAction(formData: FormData): Promise<voi
   );
 
   if (error) {
-    throw new Error(error.message);
+    await flash("error", error.message);
+    return;
   }
+
+  await flash("success", enabled ? "Booking engine settings saved (enabled)" : "Booking engine settings saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

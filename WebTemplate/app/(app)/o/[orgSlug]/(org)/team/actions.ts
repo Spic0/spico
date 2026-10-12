@@ -7,6 +7,7 @@ import { requireUser, requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { checkMembershipCreationAllowed } from "@/lib/planLimits";
+import { flash } from "@/lib/flash";
 
 const roleKeys = [
   "receptionist",
@@ -37,7 +38,8 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
     hotelId: formData.get("hotelId") || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
   const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
@@ -45,7 +47,8 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
 
   const planLimit = await checkMembershipCreationAllowed(organization.id);
   if (!planLimit.allowed) {
-    throw new Error(planLimit.reason ?? "This organization's plan does not allow inviting another team member.");
+    await flash("error", planLimit.reason ?? "This organization's plan does not allow inviting another team member.");
+    return;
   }
 
   const supabase = await createClient();
@@ -61,8 +64,11 @@ export async function inviteMemberAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !invitation) {
-    throw new Error(error?.message ?? "Not authorized to invite members with this role/scope");
+    await flash("error", error?.message ?? "Not authorized to invite members with this role/scope");
+    return;
   }
+
+  await flash("success", `Invitation sent to ${parsed.email}`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -90,7 +96,8 @@ export async function changeRoleAction(formData: FormData): Promise<void> {
     roleKey: formData.get("roleKey"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
   const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
@@ -111,8 +118,11 @@ export async function changeRoleAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "Not authorized to change this membership's role");
+    await flash("error", error?.message ?? "Not authorized to change this membership's role");
+    return;
   }
+
+  await flash("success", "Role updated");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -138,7 +148,8 @@ export async function revokeMemberAction(formData: FormData): Promise<void> {
     membershipId: formData.get("membershipId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
   const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
@@ -153,8 +164,11 @@ export async function revokeMemberAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "Not authorized to revoke this membership");
+    await flash("error", error?.message ?? "Not authorized to revoke this membership");
+    return;
   }
+
+  await flash("success", "Member access revoked");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -184,7 +198,8 @@ export async function assignDepartmentAction(formData: FormData): Promise<void> 
     departmentId: formData.get("departmentId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
   const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
@@ -197,7 +212,8 @@ export async function assignDepartmentAction(formData: FormData): Promise<void> 
     .single();
 
   if (!membership?.hotel_id) {
-    throw new Error("Only hotel-scoped memberships can be assigned to a department");
+    await flash("error", "Only hotel-scoped memberships can be assigned to a department");
+    return;
   }
 
   const user = await requirePermission("team.departments.assign", {
@@ -212,8 +228,11 @@ export async function assignDepartmentAction(formData: FormData): Promise<void> 
     .single();
 
   if (error || !assignment) {
-    throw new Error(error?.message ?? "Failed to assign department");
+    await flash("error", error?.message ?? "Failed to assign department");
+    return;
   }
+
+  await flash("success", "Department assigned");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -241,7 +260,8 @@ export async function unassignDepartmentAction(formData: FormData): Promise<void
     departmentId: formData.get("departmentId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
   const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
@@ -254,7 +274,8 @@ export async function unassignDepartmentAction(formData: FormData): Promise<void
     .single();
 
   if (!membership?.hotel_id) {
-    throw new Error("Only hotel-scoped memberships can be unassigned from a department");
+    await flash("error", "Only hotel-scoped memberships can be unassigned from a department");
+    return;
   }
 
   const user = await requirePermission("team.departments.assign", {
@@ -269,8 +290,11 @@ export async function unassignDepartmentAction(formData: FormData): Promise<void
     .eq("department_id", parsed.departmentId);
 
   if (error) {
-    throw new Error(`Failed to unassign department: ${error.message}`);
+    await flash("error", `Failed to unassign department: ${error.message}`);
+    return;
   }
+
+  await flash("success", "Department unassigned");
 
   await writeAuditLog({
     actorProfileId: user.id,

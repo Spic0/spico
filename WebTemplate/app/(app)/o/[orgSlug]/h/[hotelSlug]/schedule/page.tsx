@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -39,9 +40,7 @@ export default async function SchedulePage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">
-        {hotel.name} — Business Hours &amp; Holidays ({hotel.timezone})
-      </h4>
+      <PageHeader title="Business Hours" subtitle={`${hotel.name} · ${organization.name} · ${hotel.timezone}`} />
 
       <h5 className="title mt--20">Weekly business hours</h5>
       <form action={updateBusinessHoursAction}>

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -50,7 +51,8 @@ export async function updateAgentScheduleAction(formData: FormData): Promise<voi
     outsideHoursBehavior: formData.get("outsideHoursBehavior"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -74,7 +76,8 @@ export async function updateAgentScheduleAction(formData: FormData): Promise<voi
     })
     .eq("id", parsed.agentId);
   if (agentError) {
-    throw new Error(`Failed to save schedule settings: ${agentError.message}`);
+    await flash("error", `Failed to save schedule settings: ${agentError.message}`);
+    return;
   }
 
   if (!parsed.useHotelHours) {
@@ -94,7 +97,8 @@ export async function updateAgentScheduleAction(formData: FormData): Promise<voi
         close: timeOrUndefined(formData.get(`day_${day}_close`)),
       });
       if (!dayResult.success) {
-        throw new Error(`Day ${day}: ${dayResult.error.issues[0]?.message ?? "invalid schedule"}`);
+        await flash("error", `Day ${day}: ${dayResult.error.issues[0]?.message ?? "invalid schedule"}`);
+        return;
       }
       const d = dayResult.data;
       rows.push({
@@ -111,9 +115,12 @@ export async function updateAgentScheduleAction(formData: FormData): Promise<voi
       .from("ai_agent_schedules")
       .upsert(rows, { onConflict: "agent_id,day_of_week,shift_index" });
     if (upsertError) {
-      throw new Error(`Failed to save override schedule: ${upsertError.message}`);
+      await flash("error", `Failed to save override schedule: ${upsertError.message}`);
+      return;
     }
   }
+
+  await flash("success", "Schedule saved");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -167,7 +174,8 @@ export async function updateAgentHandoffAction(formData: FormData): Promise<void
     fallbackWhenUnavailable: formData.get("fallbackWhenUnavailable"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -200,8 +208,11 @@ export async function updateAgentHandoffAction(formData: FormData): Promise<void
     .eq("agent_id", parsed.agentId);
 
   if (error) {
-    throw new Error(`Failed to save handoff rules: ${error.message}`);
+    await flash("error", `Failed to save handoff rules: ${error.message}`);
+    return;
   }
+
+  await flash("success", "Handoff rules saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

@@ -1,19 +1,21 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { Wizard, Field, type WizardStep } from "@/components/ui/Wizard";
+import { WizardDialog, Field, type WizardStep } from "@/components/ui/WizardDialog";
 import { nightsBetween, formatMoney, todayISO } from "@/lib/pms";
-import { createReservationAction } from "../actions";
+import { createReservationAction } from "./actions";
+import { GuestDialog } from "../guests/GuestDialog";
 
 type Guest = { id: string; first_name: string; last_name: string };
 type RoomType = { id: string; name: string; base_rate: number };
 type RatePlan = { id: string; name: string; room_type_id: string; nightly_amount: number };
 
-// Live reservation wizard. Local state mirrors a few fields only to drive the
-// nights count, the rate-plan filter and the price estimate — the inputs stay
-// uncontrolled and the single form submit sends everything.
-export function ReservationWizard({
+// Reservation wizard as a modal popup (see components/ui/WizardDialog). Local
+// state mirrors a few fields only to drive the nights count, the rate-plan
+// filter and the price estimate — the inputs stay uncontrolled-ish and the
+// single form submit sends everything. "New guest" opens a second popup
+// (GuestDialog) whose success reopens this wizard with the guest preselected.
+export function ReservationDialog({
   orgSlug,
   hotelSlug,
   currency,
@@ -21,6 +23,7 @@ export function ReservationWizard({
   roomTypes,
   ratePlans,
   initialGuestId,
+  defaultOpen = false,
 }: {
   orgSlug: string;
   hotelSlug: string;
@@ -29,13 +32,15 @@ export function ReservationWizard({
   roomTypes: RoomType[];
   ratePlans: RatePlan[];
   initialGuestId?: string;
+  defaultOpen?: boolean;
 }) {
   const [checkIn, setCheckIn] = useState(todayISO());
   const [checkOut, setCheckOut] = useState("");
   const [roomTypeId, setRoomTypeId] = useState(roomTypes[0]?.id ?? "");
   const [ratePlanId, setRatePlanId] = useState("");
 
-  const back = `/o/${orgSlug}/h/${hotelSlug}/reservations/new`;
+  // Reopen this wizard (with the new guest preselected) after adding a guest.
+  const reopenWithGuest = `/o/${orgSlug}/h/${hotelSlug}/reservations?create=1`;
   const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0;
   const plansForType = ratePlans.filter((rp) => rp.room_type_id === roomTypeId);
   const selectedType = roomTypes.find((t) => t.id === roomTypeId);
@@ -43,27 +48,19 @@ export function ReservationWizard({
   const nightly = selectedPlan ? Number(selectedPlan.nightly_amount) : Number(selectedType?.base_rate ?? 0);
   const estimate = nights > 0 ? nights * nightly : 0;
 
-  const prereq = (text: string, href: string, label: string) => (
-    <div className="spico-callout">
-      <p>{text}</p>
-      <Link href={href} className="rts-btn btn-primary btn-sm">
-        {label}
-      </Link>
-    </div>
-  );
-
   const steps: WizardStep[] = [
     {
       id: "guest",
       title: "Guest",
+      icon: "fa-solid fa-user",
+      desc: "Who is staying",
       intro: "Who is staying? Pick an existing guest or add a new one.",
       content:
         guests.length === 0 ? (
-          prereq(
-            "No guests yet. Add the guest first, then you'll come straight back here.",
-            `/o/${orgSlug}/h/${hotelSlug}/guests/new?returnTo=${encodeURIComponent(back)}`,
-            "Add a guest",
-          )
+          <div className="spico-callout">
+            <p>No guests yet. Add the guest first — you&apos;ll come straight back here with them selected.</p>
+            <GuestDialog orgSlug={orgSlug} hotelSlug={hotelSlug} returnTo={reopenWithGuest} />
+          </div>
         ) : (
           <>
             <Field name="guestId" label="Guest" hint="The person the booking is for">
@@ -78,18 +75,15 @@ export function ReservationWizard({
                 ))}
               </select>
             </Field>
-            <Link
-              href={`/o/${orgSlug}/h/${hotelSlug}/guests/new?returnTo=${encodeURIComponent(back)}`}
-              className="rts-btn btn-ghost btn-sm"
-            >
-              + New guest
-            </Link>
+            <GuestDialog orgSlug={orgSlug} hotelSlug={hotelSlug} returnTo={reopenWithGuest} />
           </>
         ),
     },
     {
       id: "stay",
       title: "Stay",
+      icon: "fa-solid fa-calendar-days",
+      desc: "Dates & guests",
       intro: "When are they arriving and leaving, and how many people?",
       content: (
         <>
@@ -116,14 +110,14 @@ export function ReservationWizard({
     {
       id: "room",
       title: "Room & rate",
+      icon: "fa-solid fa-bed",
+      desc: "Type & price",
       intro: "Which room type, and at what rate? The estimate updates as you choose.",
       content:
         roomTypes.length === 0 ? (
-          prereq(
-            "No active room types yet. Add one under Rooms & Rates, then come back to finish the booking.",
-            `/o/${orgSlug}/h/${hotelSlug}/pms`,
-            "Go to Rooms & Rates",
-          )
+          <div className="spico-callout">
+            <p>No active room types yet. Add one under Rooms &amp; Rates, then come back to finish the booking.</p>
+          </div>
         ) : (
           <>
             <Field name="roomTypeId" label="Room type" hint="Availability is checked when you submit">
@@ -165,6 +159,8 @@ export function ReservationWizard({
     {
       id: "notes",
       title: "Notes",
+      icon: "fa-solid fa-note-sticky",
+      desc: "Anything to add",
       intro: "Anything the team should know about this booking?",
       content: (
         <Field name="notes" label="Notes" hint="Optional — requests, arrival time, etc.">
@@ -175,6 +171,14 @@ export function ReservationWizard({
   ];
 
   return (
-    <Wizard action={createReservationAction} hidden={{ orgSlug, hotelSlug }} submitLabel="Create reservation" steps={steps} />
+    <WizardDialog
+      trigger="New reservation"
+      title="New reservation"
+      action={createReservationAction}
+      hidden={{ orgSlug, hotelSlug }}
+      submitLabel="Create reservation"
+      steps={steps}
+      defaultOpen={defaultOpen}
+    />
   );
 }

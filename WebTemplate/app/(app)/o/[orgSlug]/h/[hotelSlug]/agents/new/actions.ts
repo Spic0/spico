@@ -8,6 +8,7 @@ import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib
 import { writeAuditLog } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
 import { CAPABILITY_REGISTRY } from "@/lib/agentCapabilities";
+import { flash } from "@/lib/flash";
 
 const agentTypeValues = [
   "receptionist",
@@ -42,7 +43,8 @@ export async function createAgentAction(formData: FormData): Promise<void> {
     defaultLanguage: formData.get("defaultLanguage"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    redirect(`/o/${String(formData.get("orgSlug") ?? "")}/h/${String(formData.get("hotelSlug") ?? "")}/agents/new`);
   }
   const parsed = result.data;
 
@@ -50,7 +52,8 @@ export async function createAgentAction(formData: FormData): Promise<void> {
   const hotel = await getHotelBySlugOrNotFound(organization.id, parsed.hotelSlug);
 
   if (!hotel.languages.includes(parsed.defaultLanguage)) {
-    throw new Error("Default language must be one of the hotel's supported languages");
+    await flash("error", "Default language must be one of the hotel's supported languages");
+    redirect(`/o/${organization.slug}/h/${hotel.slug}/agents/new`);
   }
 
   const user = await requirePermission("ai_agents.create", { hotelId: hotel.id, organizationId: organization.id });
@@ -88,11 +91,13 @@ export async function createAgentAction(formData: FormData): Promise<void> {
       continue;
     }
 
-    throw new Error(error?.message ?? "Failed to create agent (name may already be in use for this hotel)");
+    await flash("error", error?.message ?? "Failed to create agent (name may already be in use for this hotel)");
+    redirect(`/o/${organization.slug}/h/${hotel.slug}/agents/new`);
   }
 
   if (!agentId) {
-    throw new Error("Failed to create agent after multiple attempts");
+    await flash("error", "Failed to create agent after multiple attempts");
+    redirect(`/o/${organization.slug}/h/${hotel.slug}/agents/new`);
   }
 
   const { error: languageError } = await supabase.from("ai_agent_languages").insert({
@@ -147,5 +152,6 @@ export async function createAgentAction(formData: FormData): Promise<void> {
     after: { name: parsed.name, slug, agentType: parsed.agentType },
   });
 
+  await flash("success", `${parsed.name} created`);
   redirect(`/o/${organization.slug}/h/${hotel.slug}/agents/${agentId}`);
 }

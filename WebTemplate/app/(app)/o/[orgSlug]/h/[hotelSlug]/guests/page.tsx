@@ -1,15 +1,20 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { updateGuestAction } from "./actions";
+import { GuestDialog } from "./GuestDialog";
 
 export default async function GuestsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgSlug: string; hotelSlug: string }>;
+  searchParams: Promise<{ create?: string; returnTo?: string }>;
 }) {
   const { orgSlug, hotelSlug } = await params;
+  const { create, returnTo } = await searchParams;
   const organization = await getOrganizationBySlugOrNotFound(orgSlug);
   const hotel = await getHotelBySlugOrNotFound(organization.id, hotelSlug);
   const user = await requirePermission("guests.read", { hotelId: hotel.id, organizationId: organization.id });
@@ -32,20 +37,21 @@ export default async function GuestsPage({
 
   return (
     <div className="pt--40">
-      <div className="spico-inline-form" style={{ justifyContent: "space-between" }}>
-        <h4 className="title">{hotel.name} — Guests</h4>
-        {canManage && (
-          <Link href={`${base}/new`} className="rts-btn btn-primary">
-            Add guest
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Guests"
+        subtitle={`${hotel.name} · ${organization.name}`}
+        actions={
+          canManage ? (
+            <GuestDialog orgSlug={orgSlug} hotelSlug={hotelSlug} defaultOpen={create === "1"} returnTo={returnTo?.startsWith("/o/") ? returnTo : undefined} />
+          ) : undefined
+        }
+      />
 
       {guestList.length === 0 ? (
         <div className="spico-panel">
           <p className="spico-muted">No guests yet — add the first one to start taking bookings.</p>
           {canManage && (
-            <Link href={`${base}/new`} className="rts-btn btn-primary">
+            <Link href={`${base}?create=1`} className="rts-btn btn-primary">
               Add guest
             </Link>
           )}

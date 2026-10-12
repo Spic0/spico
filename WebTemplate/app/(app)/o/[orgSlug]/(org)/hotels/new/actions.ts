@@ -8,6 +8,7 @@ import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
 import { checkHotelCreationAllowed } from "@/lib/planLimits";
+import { flash } from "@/lib/flash";
 
 const schema = z.object({
   orgSlug: z.string().min(1),
@@ -20,7 +21,8 @@ export async function createHotelAction(formData: FormData): Promise<void> {
     name: formData.get("name"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    redirect(`/o/${String(formData.get("orgSlug") ?? "")}/hotels/new`);
   }
   const parsed = result.data;
 
@@ -29,7 +31,8 @@ export async function createHotelAction(formData: FormData): Promise<void> {
 
   const planLimit = await checkHotelCreationAllowed(organization.id);
   if (!planLimit.allowed) {
-    throw new Error(planLimit.reason ?? "This organization's plan does not allow creating another hotel.");
+    await flash("error", planLimit.reason ?? "This organization's plan does not allow creating another hotel.");
+    redirect(`/o/${organization.slug}/hotels/new`);
   }
 
   const supabase = await createClient();
@@ -55,11 +58,13 @@ export async function createHotelAction(formData: FormData): Promise<void> {
       continue;
     }
 
-    throw new Error(error?.message ?? "Failed to create hotel");
+    await flash("error", error?.message ?? "Failed to create hotel");
+    redirect(`/o/${organization.slug}/hotels/new`);
   }
 
   if (!hotelId) {
-    throw new Error("Failed to create hotel after multiple attempts");
+    await flash("error", "Failed to create hotel after multiple attempts");
+    redirect(`/o/${organization.slug}/hotels/new`);
   }
 
   await writeAuditLog({
@@ -72,5 +77,6 @@ export async function createHotelAction(formData: FormData): Promise<void> {
     after: { name: parsed.name, slug },
   });
 
+  await flash("success", `${parsed.name} created`);
   redirect(`/o/${organization.slug}/h/${slug}`);
 }

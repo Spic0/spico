@@ -1,4 +1,5 @@
 import { requirePlatformRole } from "@/lib/authz";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PlatformAuditLogPage() {
@@ -27,7 +28,7 @@ export default async function PlatformAuditLogPage() {
 
   return (
     <div className="pt--40">
-      <h4 className="title">Platform Audit Log</h4>
+      <PageHeader title="Platform Audit Log" subtitle="Platform administration" />
       <table className="spico-table">
         <thead>
           <tr>

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { runHotelReadinessChecks } from "@/lib/hotelReadiness";
@@ -43,9 +44,11 @@ export default async function HotelOnboardingPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title" style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        {hotel.name} — Onboarding <StatusChip status={hotel.status} />
-      </h4>
+      <PageHeader
+        title="Onboarding"
+        subtitle={`${hotel.name} · ${organization.name}`}
+        actions={<StatusChip status={hotel.status} />}
+      />
       <p className="spico-muted">
         A hotel stays in <strong>onboarding</strong> until every check below passes. Voice configuration and payment
         processing are never required to activate — a hotel can go active for PMS and booking-engine testing

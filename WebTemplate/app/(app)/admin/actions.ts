@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const toggleSchema = z.object({
   organizationId: z.string().min(1, "organizationId is required"),
@@ -21,7 +22,8 @@ export async function setOrganizationStatusAction(formData: FormData): Promise<v
     nextStatus: formData.get("nextStatus"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid request");
+    await flash("error", parsed.error.issues[0]?.message ?? "Invalid request");
+    return;
   }
 
   const supabase = await createClient();
@@ -37,8 +39,11 @@ export async function setOrganizationStatusAction(formData: FormData): Promise<v
     .eq("id", parsed.data.organizationId);
 
   if (error) {
-    throw new Error(`Failed to update organization status: ${error.message}`);
+    await flash("error", `Failed to update organization status: ${error.message}`);
+    return;
   }
+
+  await flash("success", parsed.data.nextStatus === "active" ? "Organization reactivated" : "Organization suspended");
 
   await writeAuditLog({
     actorProfileId: user.id,

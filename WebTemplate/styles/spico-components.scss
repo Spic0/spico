@@ -494,6 +494,65 @@
   margin-inline: auto;
 }
 
+// ---------------------------------------------------------------------------
+// Page header banner (components/layout/PageHeader.tsx). One per page. Gradient
+// primary -> violet, white text (>= 4.5:1), optional right-aligned actions.
+// ---------------------------------------------------------------------------
+.spico-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: 20px 24px;
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(100deg, var(--color-primary), var(--color-primary-violet));
+  box-shadow: var(--shadow-sm);
+}
+
+.spico-page-header-title {
+  margin: 0;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.spico-page-header-subtitle {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+}
+
+.spico-page-header-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+
+  // On the blue banner the primary button inverts: white fill, primary text.
+  .rts-btn.btn-primary {
+    background: #fff;
+    color: var(--color-primary);
+
+    &:hover,
+    &:focus-visible {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--color-primary);
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .spico-page-header {
+    padding: 16px 18px;
+  }
+
+  .spico-page-header-title {
+    font-size: 22px;
+  }
+}
+
 .spico-wizard {
   max-width: 640px;
 
@@ -617,6 +676,244 @@
   align-items: center;
   gap: 8px;
   margin-bottom: var(--space-4);
+}
+
+// ---------------------------------------------------------------------------
+// Wizard as a modal popup (components/ui/WizardDialog.tsx). Left vertical
+// stepper + scrolling content + fixed header/footer. Token-driven, dark-mode,
+// no entrance animation (so prefers-reduced-motion is satisfied by default).
+// ---------------------------------------------------------------------------
+.spico-wizard-dialog {
+  width: 960px;
+  max-width: 90vw;
+  max-height: 85vh;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text-body);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  // Override the on-page wizard width constraint inside the dialog.
+  .spico-wizard {
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+  }
+
+  .input-wrapper {
+    max-width: 520px;
+  }
+}
+
+.spico-wizard-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex: 0 0 auto;
+}
+
+.spico-wizard-dialog-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.spico-wizard-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+
+  &:hover {
+    background: var(--surface-2);
+    color: var(--text-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+}
+
+.spico-wizard-dialog-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.spico-wizard-steps {
+  flex: 0 0 240px;
+  width: 240px;
+  background: var(--surface-2);
+  border-right: 1px solid var(--border-subtle);
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spico-wizard-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+
+  &:hover {
+    background: var(--surface-1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+
+  &.is-active {
+    background: var(--surface-1);
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 2px;
+      background: var(--color-primary);
+    }
+
+    .spico-wizard-step-badge {
+      background: var(--color-primary);
+      color: #fff;
+    }
+  }
+}
+
+.spico-wizard-step-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.spico-wizard-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spico-wizard-step-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+
+.spico-wizard-step-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.spico-wizard-step-mark {
+  margin-left: auto;
+  font-weight: 700;
+
+  &.is-ok {
+    color: var(--status-success-fg);
+  }
+
+  &.is-error {
+    color: var(--status-danger-fg);
+  }
+}
+
+.spico-wizard-dialog-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.spico-wizard-dialog-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-subtle);
+  flex: 0 0 auto;
+}
+
+.spico-wizard-foot-spacer {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 767px) {
+  .spico-wizard-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+
+    .spico-wizard {
+      max-height: 100dvh;
+    }
+  }
+
+  .spico-wizard-dialog-body {
+    flex-direction: column;
+  }
+
+  // Left sidebar becomes a horizontal stepper on top.
+  .spico-wizard-steps {
+    flex: 0 0 auto;
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .spico-wizard-step {
+    white-space: nowrap;
+  }
+
+  .spico-wizard-step-desc {
+    display: none;
+  }
 }
 
 .spico-wizard-review-group {

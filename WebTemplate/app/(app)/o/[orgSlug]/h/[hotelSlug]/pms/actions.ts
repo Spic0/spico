@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const codeSchema = z
   .string()
@@ -41,7 +42,8 @@ export async function createRoomTypeAction(formData: FormData): Promise<void> {
     description: (formData.get("description") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const maxOccupancy = parseIntInRange(formData.get("maxOccupancy"), "Max occupancy", 1, 20);
@@ -68,8 +70,11 @@ export async function createRoomTypeAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !roomType) {
-    throw new Error(error?.message ?? "Failed to create room type (code may already be in use)");
+    await flash("error", error?.message ?? "Failed to create room type (code may already be in use)");
+    return;
   }
+
+  await flash("success", `Room type ${p.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -92,7 +97,8 @@ export async function updateRoomTypeAction(formData: FormData): Promise<void> {
     description: (formData.get("description") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const maxOccupancy = parseIntInRange(formData.get("maxOccupancy"), "Max occupancy", 1, 20);
@@ -112,8 +118,11 @@ export async function updateRoomTypeAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update room type");
+    await flash("error", error?.message ?? "Failed to update room type");
+    return;
   }
+
+  await flash("success", `Room type ${p.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -141,7 +150,8 @@ export async function setRoomTypeStatusAction(formData: FormData): Promise<void>
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -156,8 +166,11 @@ export async function setRoomTypeStatusAction(formData: FormData): Promise<void>
     .eq("id", p.roomTypeId)
     .eq("hotel_id", hotel.id);
   if (error) {
-    throw new Error(error.message);
+    await flash("error", error.message);
+    return;
   }
+
+  await flash("success", p.nextStatus === "active" ? "Room type activated" : "Room type deactivated");
 
   await writeAuditLog({
     actorProfileId: user.id,

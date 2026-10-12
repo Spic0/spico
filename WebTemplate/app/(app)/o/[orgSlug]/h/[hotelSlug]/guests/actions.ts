@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
-import type { WizardState } from "@/components/ui/Wizard";
+import { flash } from "@/lib/flash";
+import type { WizardState } from "@/components/ui/WizardDialog";
 
 // First zod message per user-facing field, for the wizard's inline errors.
 function fieldErrorsFrom(error: z.ZodError, keys: readonly string[]): Record<string, string> {
@@ -88,13 +89,15 @@ export async function createGuestAction(_prev: WizardState, formData: FormData):
     after: { name: `${p.firstName} ${p.lastName}` },
   });
 
-  // Return to the caller (e.g. the reservation wizard) with the new guest
-  // preselected, or to the guests list. returnTo must be an internal /o/ path.
+  // Success closes the dialog, toasts, and (if returnTo is set, e.g. from the
+  // reservation flow) navigates there with the new guest preselected; otherwise
+  // it just refreshes the guests list. returnTo must be an internal /o/ path.
+  const name = `${p.firstName} ${p.lastName}`;
   const returnTo = (formData.get("returnTo") as string | null) ?? "";
   if (returnTo.startsWith("/o/")) {
-    redirect(`${returnTo}${returnTo.includes("?") ? "&" : "?"}guestId=${guest.id}`);
+    return { ok: true, message: `${name} added`, redirectTo: `${returnTo}${returnTo.includes("?") ? "&" : "?"}guestId=${guest.id}` };
   }
-  redirect(`/o/${organization.slug}/h/${hotel.slug}/guests`);
+  return { ok: true, message: `${name} added` };
 }
 
 const updateSchema = z.object({ ...fields, guestId: z.string().min(1) });
@@ -111,8 +114,10 @@ export async function updateGuestAction(formData: FormData): Promise<void> {
     countryCode: (formData.get("countryCode") as string | null)?.trim().toUpperCase() || undefined,
     notes: (formData.get("notes") as string | null)?.trim() || undefined,
   });
+  const back = `/o/${formData.get("orgSlug")}/h/${formData.get("hotelSlug")}/guests`;
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    redirect(back);
   }
   const p = result.data;
 
@@ -138,7 +143,8 @@ export async function updateGuestAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update guest");
+    await flash("error", error?.message ?? "Failed to update guest");
+    redirect(back);
   }
 
   await writeAuditLog({
@@ -150,4 +156,7 @@ export async function updateGuestAction(formData: FormData): Promise<void> {
     hotelId: hotel.id,
     after: { name: `${p.firstName} ${p.lastName}` },
   });
+
+  await flash("success", `${p.firstName} ${p.lastName} saved`);
+  redirect(back);
 }

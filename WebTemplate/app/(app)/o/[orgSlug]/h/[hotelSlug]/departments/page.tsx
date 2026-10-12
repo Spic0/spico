@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +29,7 @@ export default async function DepartmentsPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">{hotel.name} — Departments</h4>
+      <PageHeader title="Departments" subtitle={`${hotel.name} · ${organization.name}`} />
 
       <table className="spico-table">
         <thead>

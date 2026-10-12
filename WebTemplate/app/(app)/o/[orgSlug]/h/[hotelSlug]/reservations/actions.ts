@@ -8,7 +8,13 @@ import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib
 import { writeAuditLog } from "@/lib/audit";
 import { OCCUPYING_STATUSES, generateConfirmationCode, nightsBetween } from "@/lib/pms";
 import { emitWebhookEvent } from "@/lib/webhooks";
-import type { WizardState } from "@/components/ui/Wizard";
+import { flash } from "@/lib/flash";
+import type { WizardState } from "@/components/ui/WizardDialog";
+
+// Reservation lifecycle actions run from the detail page; expected failures
+// flash and redirect back there rather than hitting the error page.
+const detailPath = (formData: FormData) =>
+  `/o/${formData.get("orgSlug")}/h/${formData.get("hotelSlug")}/reservations/${formData.get("reservationId")}`;
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
@@ -183,7 +189,12 @@ export async function createReservationAction(_prev: WizardState, formData: Form
     data: { reservationId, roomTypeId: p.roomTypeId, checkInDate: p.checkInDate, checkOutDate: p.checkOutDate, totalAmount, currency: hotel.default_currency },
   });
 
-  redirect(`/o/${organization.slug}/h/${hotel.slug}/reservations/${reservationId}`);
+  // WizardDialog handles success client-side: close, toast, then navigate.
+  return {
+    ok: true,
+    message: "Reservation created",
+    redirectTo: `/o/${organization.slug}/h/${hotel.slug}/reservations/${reservationId}`,
+  };
 }
 
 async function loadReservationForUpdate(hotelId: string, reservationId: string) {
@@ -211,7 +222,10 @@ export async function setReservationStatusAction(formData: FormData): Promise<vo
     reservationId: formData.get("reservationId"),
     nextStatus: formData.get("nextStatus"),
   });
-  if (!result.success) throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  if (!result.success) {
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    redirect(detailPath(formData));
+  }
   const p = result.data;
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
@@ -219,9 +233,13 @@ export async function setReservationStatusAction(formData: FormData): Promise<vo
   const user = await requirePermission("reservations.manage", { hotelId: hotel.id, organizationId: organization.id });
 
   const { supabase, reservation } = await loadReservationForUpdate(hotel.id, p.reservationId);
-  if (!reservation) throw new Error("Reservation not found");
+  if (!reservation) {
+    await flash("error", "Reservation not found");
+    redirect(detailPath(formData));
+  }
   if (["checked_out", "cancelled", "no_show"].includes(reservation.status)) {
-    throw new Error("This reservation is already closed");
+    await flash("error", "This reservation is already closed");
+    redirect(detailPath(formData));
   }
 
   const { error } = await supabase
@@ -229,7 +247,10 @@ export async function setReservationStatusAction(formData: FormData): Promise<vo
     .update({ status: p.nextStatus })
     .eq("id", p.reservationId)
     .eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    redirect(detailPath(formData));
+  }
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -247,6 +268,10 @@ export async function setReservationStatusAction(formData: FormData): Promise<vo
     eventId: `${p.reservationId}:${p.nextStatus}`,
     data: { reservationId: p.reservationId, status: p.nextStatus },
   });
+
+  const label = p.nextStatus === "confirmed" ? "confirmed" : p.nextStatus === "cancelled" ? "cancelled" : "marked no-show";
+  await flash("success", `Reservation ${label}`);
+  redirect(detailPath(formData));
 }
 
 const checkInSchema = z.object({

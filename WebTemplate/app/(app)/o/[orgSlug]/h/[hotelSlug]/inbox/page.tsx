@@ -4,6 +4,7 @@ import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { CONVERSATION_STATUSES, channelTypeLabel } from "@/lib/inboxChannels";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const FILTERS = [{ value: "all", label: "All" }, ...CONVERSATION_STATUSES];
 
@@ -73,21 +74,24 @@ export default async function InboxPage({
 
   return (
     <div className="pt--40">
-      <div className="spico-inline-form" style={{ justifyContent: "space-between" }}>
-        <h4 className="title">{hotel.name} — Inbox</h4>
-        <div className="spico-inline-form">
-          {canManageChannels && (
-            <Link href={`${base}/channels`} className="rts-btn btn-border">
-              Channels
-            </Link>
-          )}
-          {canSend && (
-            <Link href={`${base}/new`} className="rts-btn btn-primary">
-              New conversation
-            </Link>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Inbox"
+        subtitle={`${hotel.name} · ${organization.name}`}
+        actions={
+          <>
+            {canManageChannels && (
+              <Link href={`${base}/channels`} className="rts-btn btn-border">
+                Channels
+              </Link>
+            )}
+            {canSend && (
+              <Link href={`${base}/new`} className="rts-btn btn-primary">
+                New conversation
+              </Link>
+            )}
+          </>
+        }
+      />
 
       <p className="spico-muted">
         Skeleton inbox — messages are stored but not transmitted to any live provider yet.

@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { generateApiKey, API_SCOPES, type ApiScope } from "@/lib/apiKeys";
+import { flash } from "@/lib/flash";
 
 export interface CreateApiKeyState {
   error?: string;
@@ -86,7 +87,8 @@ export async function revokeApiKeyAction(formData: FormData): Promise<void> {
     apiKeyId: formData.get("apiKeyId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -96,7 +98,12 @@ export async function revokeApiKeyAction(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("api_keys").update({ status: "revoked" }).eq("id", p.apiKeyId).eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "API key revoked");
 
   await writeAuditLog({
     actorProfileId: user.id,

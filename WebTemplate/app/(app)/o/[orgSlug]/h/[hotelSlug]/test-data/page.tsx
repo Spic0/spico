@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requireOwnerOrSuperadmin, isDemoDataSeedingEnabled } from "@/lib/demoData";
 import { createClient } from "@/lib/supabase/server";
@@ -50,9 +51,7 @@ export default async function TestDataPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">
-        {hotel.name} — Test Data <span className="spico-muted">· {organization.name}</span>
-      </h4>
+      <PageHeader title="Test Data" subtitle={`${hotel.name} · ${organization.name}`} />
       <p className="spico-muted">
         Internal-only tool for seeding safe, clearly labelled test data (room types, rooms, rate plans, guests,
         reservations, a draft AI agent, knowledge base content, and a sample inbox conversation) into <strong>{hotel.name}</strong> only —

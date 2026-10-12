@@ -12,6 +12,10 @@
 //     alias, not replace, those.
 
 :root {
+  // Page-header banner gradient endpoint (pairs with --color-primary #3F3EED).
+  // Deep enough that white title + subtitle stay >= 4.5:1 across the gradient.
+  --color-primary-violet: #7c3aed;
+
   // Surfaces (background elevation)
   --surface-1: #ffffff;             // primary card / panel / table surface
   --surface-2: #f7f7ff;             // subtle fill: callout, hover, chip, page-in-public
@@ -64,6 +68,9 @@
 // token. The per-selector chrome overrides in _dark-version.scss (sidebar,
 // header, profile menu, auth forms) still apply on top and are unaffected.
 [data-theme="dark"] {
+  // Slightly deeper violet so the banner gradient isn't too bright on dark.
+  --color-primary-violet: #7c4ddb;
+
   // Make base typography readable on the dark body (#090E18)
   --color-heading-1: #ffffff;
   --color-body: #c5c5c5;

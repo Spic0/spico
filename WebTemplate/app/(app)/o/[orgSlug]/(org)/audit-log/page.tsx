@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ export default async function OrgAuditLogPage({ params }: { params: Promise<{ or
 
   return (
     <div className="pt--40">
-      <h4 className="title">{organization.name} — Audit Log</h4>
+      <PageHeader title="Audit Log" subtitle={organization.name} />
       <table className="spico-table">
         <thead>
           <tr>

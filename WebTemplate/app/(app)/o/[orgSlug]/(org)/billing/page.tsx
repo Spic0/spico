@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +33,7 @@ export default async function BillingPage({ params }: { params: Promise<{ orgSlu
 
   return (
     <div className="pt--40">
-      <h4 className="title">{organization.name} — Billing</h4>
+      <PageHeader title="Billing" subtitle={organization.name} />
       <p className="spico-muted">
         No live payment gateway is connected — plan changes below are immediate and unpaid. See docs/roadmap.md (M10).
       </p>

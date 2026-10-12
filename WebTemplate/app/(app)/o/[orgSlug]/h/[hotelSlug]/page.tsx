@@ -5,6 +5,7 @@ import { HOTEL_MODULES } from "@/lib/nav";
 import { languageLabel } from "@/lib/languages";
 import { runHotelReadinessChecks } from "@/lib/hotelReadiness";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const PROFILE_FIELDS = [
   "description",
@@ -227,9 +228,7 @@ export default async function HotelDashboardPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">
-        {hotel.name} <span className="spico-muted">· {organization.name}</span>
-      </h4>
+      <PageHeader title={hotel.name} subtitle={organization.name} />
 
       {readiness && (
         <div className="spico-callout">

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 // Plan catalog changes are superadmin-only — the highest blast radius of any
 // write in the system (affects every organization's pricing/limits at once).
@@ -34,7 +35,8 @@ export async function createPlanAction(formData: FormData): Promise<void> {
     maxUsers: (formData.get("maxUsers") as string | null) || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const features = formData
@@ -60,8 +62,11 @@ export async function createPlanAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !plan) {
-    throw new Error(error?.message ?? "Failed to create plan (key may already be in use)");
+    await flash("error", error?.message ?? "Failed to create plan (key may already be in use)");
+    return;
   }
+
+  await flash("success", `Plan ${p.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -85,13 +90,19 @@ export async function setPlanStatusAction(formData: FormData): Promise<void> {
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
   const supabase = await createClient();
   const { error } = await supabase.from("plans").update({ status: p.nextStatus }).eq("id", p.planId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", p.nextStatus === "active" ? "Plan activated" : "Plan archived");
 
   await writeAuditLog({
     actorProfileId: user.id,

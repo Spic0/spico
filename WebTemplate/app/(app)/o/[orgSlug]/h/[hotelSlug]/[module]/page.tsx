@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { findHotelModule } from "@/lib/nav";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function HotelModulePlaceholderPage({
   params,
@@ -18,9 +19,7 @@ export default async function HotelModulePlaceholderPage({
 
   return (
     <div className="pt--40">
-      <h4 className="title">
-        {hotel.name} — {hotelModule.label}
-      </h4>
+      <PageHeader title={hotelModule.label} subtitle={`${hotel.name} · ${organization.name}`} />
       <p>{hotelModule.description}</p>
       <p className="spico-muted">Planned for {hotelModule.milestone} — see docs/roadmap.md. Not implemented yet.</p>
     </div>

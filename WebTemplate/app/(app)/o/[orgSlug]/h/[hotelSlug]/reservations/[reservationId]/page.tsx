@@ -7,6 +7,7 @@ import { OCCUPYING_STATUSES, formatMoney, nightsBetween, reservationSource } fro
 import { channelTypeLabel, channelTypeIcon } from "@/lib/inboxChannels";
 import { computeFolioBalance, folioLineCategoryLabel, paymentMethodLabel } from "@/lib/folio";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   setReservationStatusAction,
   checkInReservationAction,
@@ -139,12 +140,11 @@ export default async function ReservationDetailPage({
       <Link href={base} className="spico-muted">
         ← Back to reservations
       </Link>
-      <div className="spico-inline-form" style={{ justifyContent: "space-between", marginTop: 10 }}>
-        <h4 className="title" style={{ margin: 0 }}>
-          {r.confirmation_code}
-        </h4>
-        <StatusChip status={r.status} />
-      </div>
+      <PageHeader
+        title={`Reservation ${r.confirmation_code}`}
+        subtitle="Reservations"
+        actions={<StatusChip status={r.status} />}
+      />
 
       <div className="spico-panel">
         <p>

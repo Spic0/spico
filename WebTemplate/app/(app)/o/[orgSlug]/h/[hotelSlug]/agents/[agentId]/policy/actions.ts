@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const roleKeys = [
   "receptionist",
@@ -40,7 +41,8 @@ export async function updateAgentApprovalPolicyAction(formData: FormData): Promi
     reservationRequestsAlwaysRequireApproval: formData.get("reservationRequestsAlwaysRequireApproval") === "on",
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -66,8 +68,11 @@ export async function updateAgentApprovalPolicyAction(formData: FormData): Promi
     .eq("agent_id", parsed.agentId);
 
   if (error) {
-    throw new Error(`Failed to save approval policy: ${error.message}`);
+    await flash("error", `Failed to save approval policy: ${error.message}`);
+    return;
   }
+
+  await flash("success", "Approval policy saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

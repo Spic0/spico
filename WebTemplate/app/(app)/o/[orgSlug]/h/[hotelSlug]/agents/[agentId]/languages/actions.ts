@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 function textOrUndefined(value: FormDataEntryValue | null): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -56,7 +57,8 @@ export async function updateAgentLanguagesAction(formData: FormData): Promise<vo
     languages,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -69,7 +71,8 @@ export async function updateAgentLanguagesAction(formData: FormData): Promise<vo
   });
 
   if (!hotel.languages.some((code) => parsed.languages.some((l) => l.code === code && l.enabled))) {
-    throw new Error("Enabled languages must be among the hotel's supported languages");
+    await flash("error", "Enabled languages must be among the hotel's supported languages");
+    return;
   }
 
   const supabase = await createClient();
@@ -86,7 +89,8 @@ export async function updateAgentLanguagesAction(formData: FormData): Promise<vo
     { onConflict: "agent_id,language_code" },
   );
   if (upsertError) {
-    throw new Error(`Failed to save languages: ${upsertError.message}`);
+    await flash("error", `Failed to save languages: ${upsertError.message}`);
+    return;
   }
 
   const { error: agentError } = await supabase
@@ -94,8 +98,11 @@ export async function updateAgentLanguagesAction(formData: FormData): Promise<vo
     .update({ default_language: parsed.defaultLanguage, updated_by: user.id })
     .eq("id", parsed.agentId);
   if (agentError) {
-    throw new Error(`Languages saved but failed to update the agent's default language: ${agentError.message}`);
+    await flash("error", `Languages saved but failed to update the agent's default language: ${agentError.message}`);
+    return;
   }
+
+  await flash("success", "Languages saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

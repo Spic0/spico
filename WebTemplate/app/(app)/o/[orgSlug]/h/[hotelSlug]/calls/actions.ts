@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const noteSchema = z.object({
   orgSlug: z.string().min(1),
@@ -21,7 +22,8 @@ export async function addCallNoteAction(formData: FormData): Promise<void> {
     note: formData.get("note"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -31,11 +33,19 @@ export async function addCallNoteAction(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const { data: call } = await supabase.from("calls").select("notes").eq("id", p.callId).eq("hotel_id", hotel.id).single();
-  if (!call) throw new Error("Call not found");
+  if (!call) {
+    await flash("error", "Call not found");
+    return;
+  }
 
   const combinedNotes = call.notes ? `${call.notes}\n---\n${p.note}` : p.note;
   const { error } = await supabase.from("calls").update({ notes: combinedNotes }).eq("id", p.callId).eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Note added");
 
   await supabase.from("call_events").insert({ call_id: p.callId, event_type: "call.note", payload: { note: p.note } });
 
@@ -62,7 +72,8 @@ export async function markHandoffCompletedAction(formData: FormData): Promise<vo
     callId: formData.get("callId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -72,9 +83,13 @@ export async function markHandoffCompletedAction(formData: FormData): Promise<vo
 
   const supabase = await createClient();
   const { data: call } = await supabase.from("calls").select("disposition").eq("id", p.callId).eq("hotel_id", hotel.id).single();
-  if (!call) throw new Error("Call not found");
+  if (!call) {
+    await flash("error", "Call not found");
+    return;
+  }
   if (call.disposition !== "handoff_required") {
-    throw new Error("This call is not awaiting handoff");
+    await flash("error", "This call is not awaiting handoff");
+    return;
   }
 
   const { error } = await supabase
@@ -82,7 +97,12 @@ export async function markHandoffCompletedAction(formData: FormData): Promise<vo
     .update({ disposition: "handoff_completed" })
     .eq("id", p.callId)
     .eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Handoff marked completed");
 
   await supabase.from("call_events").insert({ call_id: p.callId, event_type: "call.handoff_completed", payload: {} });
 

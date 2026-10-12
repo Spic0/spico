@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
@@ -75,12 +76,11 @@ export default async function ConversationPage({
       <Link href={base} className="spico-muted">
         ← Back to inbox
       </Link>
-      <div className="spico-inline-form" style={{ justifyContent: "space-between", marginTop: 10 }}>
-        <h4 className="title" style={{ margin: 0 }}>
-          {conversation.guest_display_name || conversation.guest_identifier || "Guest"}
-        </h4>
-        <StatusChip status={conversation.status} />
-      </div>
+      <PageHeader
+        title={conversation.guest_display_name || conversation.guest_identifier || "Guest"}
+        subtitle="Inbox"
+        actions={<StatusChip status={conversation.status} />}
+      />
       <p className="spico-muted">
         {channel ? `${channel.name} · ${channelTypeLabel(channel.channel_type)}` : "Channel removed"}
         {conversation.subject ? ` · ${conversation.subject}` : ""}

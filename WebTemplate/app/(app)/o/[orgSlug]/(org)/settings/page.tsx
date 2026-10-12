@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 
@@ -8,7 +9,7 @@ export default async function OrgSettingsPage({ params }: { params: Promise<{ or
 
   return (
     <div className="pt--40">
-      <h4 className="title">{organization.name} — Settings</h4>
+      <PageHeader title="Settings" subtitle={organization.name} />
       <p>Organization-level settings (branding, default language, etc.) will live here.</p>
       <p className="spico-muted">
         Not implemented yet — see docs/roadmap.md. Billing has its own page: see the Billing tab.

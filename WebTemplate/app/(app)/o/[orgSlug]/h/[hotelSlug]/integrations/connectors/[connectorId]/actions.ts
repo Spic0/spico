@@ -7,6 +7,7 @@ import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib
 import { writeAuditLog } from "@/lib/audit";
 import { OCCUPYING_STATUSES } from "@/lib/pms";
 import type { SyncDirection } from "@/lib/channelSync";
+import { flash } from "@/lib/flash";
 
 // "Sync" assembles REAL current data from this hotel's own tables — nothing
 // is invented — but never transmits it anywhere. No OTA/channel-manager
@@ -27,7 +28,8 @@ export async function runChannelSyncAction(formData: FormData): Promise<void> {
     direction: formData.get("direction"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const direction = p.direction as SyncDirection;
@@ -44,7 +46,8 @@ export async function runChannelSyncAction(formData: FormData): Promise<void> {
     .eq("hotel_id", hotel.id)
     .single();
   if (!connector || connector.integration_type !== "channel_manager") {
-    throw new Error("Connector not found or is not a channel-manager connector");
+    await flash("error", "Connector not found or is not a channel-manager connector");
+    return;
   }
 
   const startedAt = new Date().toISOString();
@@ -63,7 +66,12 @@ export async function runChannelSyncAction(formData: FormData): Promise<void> {
     })
     .select("id")
     .single();
-  if (error || !log) throw new Error(error?.message ?? "Failed to record sync log");
+  if (error || !log) {
+    await flash("error", error?.message ?? "Failed to record sync log");
+    return;
+  }
+
+  await flash("success", `Sync completed (${direction.replace("_", " ")})`);
 
   await writeAuditLog({
     actorProfileId: user.id,

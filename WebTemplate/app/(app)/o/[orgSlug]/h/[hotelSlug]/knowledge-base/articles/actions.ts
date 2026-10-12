@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const languageCode = z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/, "Invalid language code");
 const articleType = z.enum(["faq", "article", "policy", "snippet"]);
@@ -61,7 +62,8 @@ export async function createArticleAction(formData: FormData): Promise<void> {
     categoryId: (formData.get("categoryId") as string | null) || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -94,8 +96,11 @@ export async function createArticleAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !article) {
-    throw new Error(error?.message ?? "Failed to create article");
+    await flash("error", error?.message ?? "Failed to create article");
+    return;
   }
+
+  await flash("success", `Article ${parsed.title} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -123,7 +128,8 @@ export async function updateArticleAction(formData: FormData): Promise<void> {
     categoryId: (formData.get("categoryId") as string | null) || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -160,8 +166,11 @@ export async function updateArticleAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update article");
+    await flash("error", error?.message ?? "Failed to update article");
+    return;
   }
+
+  await flash("success", `Article ${parsed.title} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -190,7 +199,8 @@ export async function setArticleStatusAction(formData: FormData): Promise<void> 
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -210,8 +220,14 @@ export async function setArticleStatusAction(formData: FormData): Promise<void> 
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to change article status");
+    await flash("error", error?.message ?? "Failed to change article status");
+    return;
   }
+
+  await flash(
+    "success",
+    parsed.nextStatus === "published" ? "Article published" : parsed.nextStatus === "archived" ? "Article archived" : "Article moved to draft",
+  );
 
   await writeAuditLog({
     actorProfileId: user.id,

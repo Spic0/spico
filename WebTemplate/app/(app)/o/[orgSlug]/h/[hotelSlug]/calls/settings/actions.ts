@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const schema = z.object({
   orgSlug: z.string().min(1),
@@ -23,7 +24,8 @@ export async function saveVoiceSettingsAction(formData: FormData): Promise<void>
     greetingNote: (formData.get("greetingNote") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const enabled = formData.get("enabled") === "on";
@@ -37,7 +39,10 @@ export async function saveVoiceSettingsAction(formData: FormData): Promise<void>
   // A chosen default agent must belong to this hotel (cross-table, app-enforced).
   if (p.defaultAgentId) {
     const { data } = await supabase.from("ai_agents").select("id").eq("id", p.defaultAgentId).eq("hotel_id", hotel.id).single();
-    if (!data) throw new Error("Selected agent does not belong to this hotel");
+    if (!data) {
+      await flash("error", "Selected agent does not belong to this hotel");
+      return;
+    }
   }
 
   const { error } = await supabase.from("hotel_voice_settings").upsert(
@@ -53,8 +58,11 @@ export async function saveVoiceSettingsAction(formData: FormData): Promise<void>
     { onConflict: "hotel_id" },
   );
   if (error) {
-    throw new Error(error.message);
+    await flash("error", error.message);
+    return;
   }
+
+  await flash("success", "Voice settings saved");
 
   await writeAuditLog({
     actorProfileId: user.id,

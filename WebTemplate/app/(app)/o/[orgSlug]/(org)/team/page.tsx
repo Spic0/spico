@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
@@ -75,7 +76,7 @@ export default async function TeamPage({ params }: { params: Promise<{ orgSlug: 
 
   return (
     <div className="pt--40">
-      <h4 className="title">{organization.name} — Team &amp; Roles</h4>
+      <PageHeader title="Team & Roles" subtitle={organization.name} />
 
       <table className="spico-table">
         <thead>

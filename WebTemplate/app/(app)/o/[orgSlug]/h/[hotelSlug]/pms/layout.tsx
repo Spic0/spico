@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 import { TabNav } from "@/components/layout/TabNav";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function PmsLayout({
   children,
@@ -19,7 +20,7 @@ export default async function PmsLayout({
 
   return (
     <div className="pt--40">
-      <h4 className="title">{hotel.name} — Rooms & Rates</h4>
+      <PageHeader title="Rooms & Rates" subtitle={`${hotel.name} · ${organization.name}`} />
       <TabNav
         items={[
           { href: base, label: "Room Types" },

@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { EVENT_TYPES, type WebhookEventType } from "@/lib/webhooks";
+import { flash } from "@/lib/flash";
 
 const VALID_EVENTS = new Set(EVENT_TYPES.map((e) => e.value));
 
@@ -32,12 +33,14 @@ export async function createWebhookAction(formData: FormData): Promise<void> {
     url: formData.get("url"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const eventTypes = parseEventTypes(formData);
   if (eventTypes.length === 0) {
-    throw new Error("Select at least one event type");
+    await flash("error", "Select at least one event type");
+    return;
   }
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
@@ -61,8 +64,11 @@ export async function createWebhookAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !webhook) {
-    throw new Error(error?.message ?? "Failed to create webhook");
+    await flash("error", error?.message ?? "Failed to create webhook");
+    return;
   }
+
+  await flash("success", `Webhook ${p.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -92,12 +98,14 @@ export async function updateWebhookAction(formData: FormData): Promise<void> {
     url: formData.get("url"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
   const eventTypes = parseEventTypes(formData);
   if (eventTypes.length === 0) {
-    throw new Error("Select at least one event type");
+    await flash("error", "Select at least one event type");
+    return;
   }
 
   const organization = await getOrganizationBySlugOrNotFound(p.orgSlug);
@@ -110,7 +118,12 @@ export async function updateWebhookAction(formData: FormData): Promise<void> {
     .update({ name: p.name, url: p.url, event_types: eventTypes })
     .eq("id", p.webhookId)
     .eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", `Webhook ${p.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -138,7 +151,8 @@ export async function setWebhookStatusAction(formData: FormData): Promise<void> 
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -148,7 +162,12 @@ export async function setWebhookStatusAction(formData: FormData): Promise<void> 
 
   const supabase = await createClient();
   const { error } = await supabase.from("webhooks").update({ status: p.nextStatus }).eq("id", p.webhookId).eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", p.nextStatus === "active" ? "Webhook enabled" : "Webhook disabled");
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -174,7 +193,8 @@ export async function deleteWebhookAction(formData: FormData): Promise<void> {
     webhookId: formData.get("webhookId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -184,7 +204,12 @@ export async function deleteWebhookAction(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("webhooks").delete().eq("id", p.webhookId).eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Webhook removed");
 
   await writeAuditLog({
     actorProfileId: user.id,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { getOrganizationBySlugOrNotFound, listHotelsForOrganization } from "@/lib/data";
 import { StatusChip } from "@/components/ui/StatusChip";
 
@@ -9,9 +10,7 @@ export default async function OrgHotelsPage({ params }: { params: Promise<{ orgS
 
   return (
     <div className="pt--40">
-      <h4 className="title">
-        {organization.name} — Hotels
-      </h4>
+      <PageHeader title="Hotels" subtitle={organization.name} />
       {hotels.length === 0 ? (
         <p>No hotels yet.</p>
       ) : (

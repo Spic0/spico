@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
+import { flash } from "@/lib/flash";
 
 const channelType = z.enum(["email", "sms", "whatsapp", "viber", "web_chat", "voice"]);
 const direction = z.enum(["inbound", "outbound", "bidirectional"]);
@@ -28,7 +29,8 @@ export async function createChannelAction(formData: FormData): Promise<void> {
     direction: formData.get("direction"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -53,8 +55,11 @@ export async function createChannelAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !channel) {
-    throw new Error(error?.message ?? "Failed to create channel (a channel with this name may already exist)");
+    await flash("error", error?.message ?? "Failed to create channel (a channel with this name may already exist)");
+    return;
   }
+
+  await flash("success", `Channel ${parsed.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -86,7 +91,8 @@ export async function updateChannelAction(formData: FormData): Promise<void> {
     direction: formData.get("direction"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -104,8 +110,11 @@ export async function updateChannelAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update channel");
+    await flash("error", error?.message ?? "Failed to update channel");
+    return;
   }
+
+  await flash("success", `Channel ${parsed.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -133,7 +142,8 @@ export async function setChannelStatusAction(formData: FormData): Promise<void> 
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -151,8 +161,11 @@ export async function setChannelStatusAction(formData: FormData): Promise<void> 
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to change channel status");
+    await flash("error", error?.message ?? "Failed to change channel status");
+    return;
   }
+
+  await flash("success", parsed.nextStatus === "active" ? "Channel activated" : "Channel deactivated");
 
   await writeAuditLog({
     actorProfileId: user.id,

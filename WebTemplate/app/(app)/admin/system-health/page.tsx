@@ -1,4 +1,5 @@
 import { requirePlatformRole } from "@/lib/authz";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 
@@ -70,7 +71,7 @@ export default async function SystemHealthPage() {
 
   return (
     <div className="pt--40">
-      <h4 className="title">Platform System Health</h4>
+      <PageHeader title="System Health" subtitle="Platform administration" />
       <p className="spico-muted">
         Truthful status only — never claims a provider is connected unless verified just now, and never renders a
         secret, connection string, or key value.

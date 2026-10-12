@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { requirePermission } from "@/lib/authz";
 import { TabNav } from "@/components/layout/TabNav";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function AgentDetailLayout({
   children,
@@ -20,9 +21,7 @@ export default async function AgentDetailLayout({
 
   return (
     <div className="pt--40">
-      <h4 className="title">
-        {agent.name} <span className="spico-muted">· {agent.status}</span>
-      </h4>
+      <PageHeader title={agent.name} subtitle={`${hotel.name} · AI Agents · ${agent.status}`} />
       <TabNav
         items={[
           { href: base, label: "Overview" },

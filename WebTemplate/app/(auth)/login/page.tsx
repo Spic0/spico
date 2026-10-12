@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(signInAction, initialState);
 
   return (
-    <div className="main-center-content-m-left center-content">
+    <div className="main-center-content-m-left center-content" style={{ marginLeft: "auto", marginRight: "auto" }}>
       <div className="rts-register-area">
         <div className="single-form-s-wrapper">
           <div className="head">

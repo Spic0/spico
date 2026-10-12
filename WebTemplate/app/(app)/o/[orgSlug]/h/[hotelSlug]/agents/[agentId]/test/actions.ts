@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound, getAgentByIdOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { simulateAgentTest } from "@/lib/agentTestSimulation";
+import { flash } from "@/lib/flash";
 
 const schema = z.object({
   orgSlug: z.string().min(1),
@@ -28,7 +29,8 @@ export async function runAgentTestAction(formData: FormData): Promise<void> {
     testLanguage: formData.get("testLanguage"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -52,7 +54,8 @@ export async function runAgentTestAction(formData: FormData): Promise<void> {
   ]);
 
   if (!handoff) {
-    throw new Error("Failed to load handoff rules for simulation");
+    await flash("error", "Failed to load handoff rules for simulation");
+    return;
   }
 
   const simulation = simulateAgentTest({
@@ -73,8 +76,11 @@ export async function runAgentTestAction(formData: FormData): Promise<void> {
     simulated_result: simulation,
   });
   if (insertError) {
-    throw new Error(`Failed to record test session: ${insertError.message}`);
+    await flash("error", `Failed to record test session: ${insertError.message}`);
+    return;
   }
+
+  await flash("success", "Simulation complete");
 
   await writeAuditLog({
     actorProfileId: user.id,

@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { slugify } from "@/lib/slug";
+import { flash } from "@/lib/flash";
 
 const createSchema = z.object({
   orgSlug: z.string().min(1),
@@ -22,7 +23,8 @@ export async function createCategoryAction(formData: FormData): Promise<void> {
     description: (formData.get("description") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -35,7 +37,8 @@ export async function createCategoryAction(formData: FormData): Promise<void> {
 
   const slug = slugify(parsed.name);
   if (!slug) {
-    throw new Error("Name must contain at least one letter or number");
+    await flash("error", "Name must contain at least one letter or number");
+    return;
   }
 
   const supabase = await createClient();
@@ -53,8 +56,11 @@ export async function createCategoryAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !category) {
-    throw new Error(error?.message ?? "Failed to create category (a category with this name may already exist)");
+    await flash("error", error?.message ?? "Failed to create category (a category with this name may already exist)");
+    return;
   }
+
+  await flash("success", `Category ${parsed.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -84,7 +90,8 @@ export async function updateCategoryAction(formData: FormData): Promise<void> {
     description: (formData.get("description") as string | null)?.trim() || undefined,
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -110,8 +117,11 @@ export async function updateCategoryAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to update category");
+    await flash("error", error?.message ?? "Failed to update category");
+    return;
   }
+
+  await flash("success", `Category ${parsed.name} saved`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -140,7 +150,8 @@ export async function setCategoryStatusAction(formData: FormData): Promise<void>
     nextStatus: formData.get("nextStatus"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const parsed = result.data;
 
@@ -160,8 +171,11 @@ export async function setCategoryStatusAction(formData: FormData): Promise<void>
     .single();
 
   if (error || !updated) {
-    throw new Error(error?.message ?? "Failed to change category status");
+    await flash("error", error?.message ?? "Failed to change category status");
+    return;
   }
+
+  await flash("success", parsed.nextStatus === "active" ? "Category restored" : "Category archived");
 
   await writeAuditLog({
     actorProfileId: user.id,

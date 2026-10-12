@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/authz";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { writeAuditLog } from "@/lib/audit";
 import { testConnectorConnection, type IntegrationType } from "@/lib/integrations";
+import { flash } from "@/lib/flash";
 
 const createSchema = z.object({
   orgSlug: z.string().min(1),
@@ -22,7 +23,8 @@ export async function createConnectorAction(formData: FormData): Promise<void> {
     name: formData.get("name"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -44,8 +46,11 @@ export async function createConnectorAction(formData: FormData): Promise<void> {
     .single();
 
   if (error || !connector) {
-    throw new Error(error?.message ?? "Failed to create connector (a connector with this name may already exist)");
+    await flash("error", error?.message ?? "Failed to create connector (a connector with this name may already exist)");
+    return;
   }
+
+  await flash("success", `Connector ${p.name} created`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -73,7 +78,8 @@ export async function testConnectorAction(formData: FormData): Promise<void> {
     integrationType: formData.get("integrationType"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -89,7 +95,12 @@ export async function testConnectorAction(formData: FormData): Promise<void> {
     .update({ status: testResult.ok ? "configured" : "not_connected" })
     .eq("id", p.connectorId)
     .eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash(testResult.ok ? "success" : "error", testResult.ok ? "Connection test passed" : `Connection test failed: ${testResult.note}`);
 
   await writeAuditLog({
     actorProfileId: user.id,
@@ -115,7 +126,8 @@ export async function deleteConnectorAction(formData: FormData): Promise<void> {
     connectorId: formData.get("connectorId"),
   });
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+    await flash("error", result.error.issues[0]?.message ?? "Invalid input");
+    return;
   }
   const p = result.data;
 
@@ -125,7 +137,12 @@ export async function deleteConnectorAction(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   const { error } = await supabase.from("integrations").delete().eq("id", p.connectorId).eq("hotel_id", hotel.id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    await flash("error", error.message);
+    return;
+  }
+
+  await flash("success", "Connector removed");
 
   await writeAuditLog({
     actorProfileId: user.id,

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformRole } from "@/lib/authz";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { raiseModerationFlagAction, resolveModerationFlagAction } from "./actions";
 
@@ -17,7 +18,7 @@ export default async function ModerationPage() {
 
   return (
     <div className="pt--40">
-      <h4 className="title">Moderation</h4>
+      <PageHeader title="Moderation" subtitle="Platform administration" />
       <p className="spico-muted">
         Any platform role can raise a flag against an organization or hotel for review. Only admin/superadmin can
         resolve one or take further action (e.g. suspend, from the Organizations page).
