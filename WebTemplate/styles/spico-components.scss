@@ -1,0 +1,295 @@
+// Spico standardized components (Phase 2 of the enterprise-polish program —
+// see docs/ui-audit.md). Buttons, status chips, and the unified card base.
+// Everything consumes the semantic tokens in spico-tokens.scss and follows the
+// template's existing `.rts-btn.btn-*` specificity pattern so nothing here
+// needs a UI library or a second design language.
+
+// ---------------------------------------------------------------------------
+// Buttons — variants layered on the template's .rts-btn base
+// (styles/elements/_buttons.scss already sets padding/radius/transition/weight).
+// Fixes RC-3: destructive/secondary actions were all identical .btn-primary.
+// ---------------------------------------------------------------------------
+.rts-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  i {
+    font-size: 0.95em;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled,
+  &.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  // Secondary: quiet, bordered. For confirm/apply actions that aren't the
+  // primary CTA (row "Update", "Assign", filter apply). `.btn-border` is an
+  // alias — the template markup used it widely but never defined it, so those
+  // buttons rendered unstyled; this gives them the intended outline look.
+  &.btn-secondary,
+  &.btn-border {
+    background: transparent;
+    border-color: var(--border-strong);
+    color: var(--text-strong);
+
+    &:hover {
+      background: var(--surface-2);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+  }
+
+  // Ghost: no border, subtle hover. For tertiary/inline actions.
+  &.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-body);
+
+    &:hover {
+      background: var(--surface-2);
+      color: var(--text-strong);
+    }
+  }
+
+  // Danger: destructive actions (revoke, remove, cancel, delete, deactivate).
+  &.btn-danger {
+    background: var(--color-danger);
+    color: #fff;
+
+    &:hover {
+      filter: brightness(0.9);
+    }
+  }
+
+  &.btn-success {
+    background: var(--color-success);
+    color: #fff;
+
+    &:hover {
+      filter: brightness(0.92);
+    }
+  }
+
+  &.btn-warning {
+    background: var(--color-warning);
+    color: #1f1f25;
+
+    &:hover {
+      filter: brightness(0.95);
+    }
+  }
+
+  // Sizes
+  &.btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  &.btn-icon {
+    padding: 0;
+    width: 40px;
+    height: 40px;
+
+    &.btn-sm {
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  // Loading: intended for filled buttons (primary/danger/success submits). The
+  // label is hidden and a spinner shown; the button is inert while loading.
+  &.is-loading {
+    color: transparent !important;
+    pointer-events: none;
+    position: relative;
+
+    &::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      top: calc(50% - 8px);
+      left: calc(50% - 8px);
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spico-spin 0.6s linear infinite;
+    }
+  }
+}
+
+@keyframes spico-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Status chips — one system for every domain status (reservation, membership,
+// hotel, call, housekeeping, subscription, …). Colour comes from the
+// --status-* tokens, mapped in lib/statusChip.ts. Fixes RC #10/#11.
+// ---------------------------------------------------------------------------
+.spico-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: 0 0 auto;
+  }
+
+  &.is-success {
+    color: var(--status-success-fg);
+    background: var(--status-success-soft);
+  }
+  &.is-warning {
+    color: var(--status-warning-fg);
+    background: var(--status-warning-soft);
+  }
+  &.is-danger {
+    color: var(--status-danger-fg);
+    background: var(--status-danger-soft);
+  }
+  &.is-info {
+    color: var(--status-info-fg);
+    background: var(--status-info-soft);
+  }
+  &.is-neutral {
+    color: var(--status-neutral-fg);
+    background: var(--status-neutral-soft);
+  }
+
+  // Chip without the leading dot (e.g. when used as a plain label pill).
+  &.is-plain::before {
+    display: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Form controls — consistent, theme-aware styling for every text input, select
+// and textarea in the dashboard content area (scoped to
+// .main-center-content-m-left so auth/marketing keep their own styling).
+// Fixes audit #7 (inconsistent forms) and makes controls legible in dark mode.
+// Checkboxes/radios/file inputs keep their native look.
+// ---------------------------------------------------------------------------
+.main-center-content-m-left {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  select,
+  textarea {
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color var(--transition), box-shadow var(--transition);
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
+
+    &:focus,
+    &:focus-visible {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--focus-ring);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &.is-invalid {
+      border-color: var(--color-danger);
+    }
+  }
+
+  // Existing field wrapper — unify label + spacing everywhere it's used, not
+  // only inside .spico-settings-form.
+  .input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+
+    > label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-strong);
+    }
+  }
+}
+
+// Field helper text — description under a label, inline validation, and a
+// character counter. Use with .input-wrapper / .spico-field.
+.spico-field-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: -2px 0 2px;
+}
+
+.spico-field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.spico-field-error {
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.spico-field-success {
+  font-size: 12px;
+  color: var(--color-success);
+}
+
+.spico-field-counter {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+// ---------------------------------------------------------------------------
+// Unified card base. .spico-panel / .spico-kpi-card / .spico-callout /
+// .spico-plan-card are all cards; give them one shared surface treatment plus
+// a subtle shadow for enterprise depth. Class names are unchanged so no page
+// markup churns.
+// ---------------------------------------------------------------------------
+.spico-panel,
+.spico-kpi-card,
+.spico-plan-card {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.spico-kpi-card:hover,
+.spico-plan-card:hover {
+  box-shadow: var(--shadow-md);
+}

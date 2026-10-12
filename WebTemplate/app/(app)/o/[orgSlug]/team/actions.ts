@@ -1,0 +1,286 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { requireUser, requirePermission } from "@/lib/authz";
+import { getOrganizationBySlugOrNotFound } from "@/lib/data";
+import { writeAuditLog } from "@/lib/audit";
+import { checkMembershipCreationAllowed } from "@/lib/planLimits";
+
+const roleKeys = [
+  "receptionist",
+  "reception_manager",
+  "reception_managers_manager",
+  "hotel_general_manager",
+  "hotel_owner",
+] as const;
+
+const inviteSchema = z.object({
+  orgSlug: z.string().min(1),
+  email: z
+    .string()
+    .min(3)
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Enter a valid email"),
+  roleKey: z.enum(roleKeys),
+  hotelId: z.string().optional(),
+});
+
+// RLS (invitations_insert_permission, via can_manage_membership) is the
+// authoritative check — this action just gives a clean error instead of a
+// raw Postgres denial.
+export async function inviteMemberAction(formData: FormData): Promise<void> {
+  const result = inviteSchema.safeParse({
+    orgSlug: formData.get("orgSlug"),
+    email: formData.get("email"),
+    roleKey: formData.get("roleKey"),
+    hotelId: formData.get("hotelId") || undefined,
+  });
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  const parsed = result.data;
+  const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
+  const user = await requireUser();
+
+  const planLimit = await checkMembershipCreationAllowed(organization.id);
+  if (!planLimit.allowed) {
+    throw new Error(planLimit.reason ?? "This organization's plan does not allow inviting another team member.");
+  }
+
+  const supabase = await createClient();
+  const { data: invitation, error } = await supabase
+    .from("invitations")
+    .insert({
+      organization_id: organization.id,
+      hotel_id: parsed.hotelId || null,
+      email: parsed.email,
+      role_key: parsed.roleKey,
+    })
+    .select("id")
+    .single();
+
+  if (error || !invitation) {
+    throw new Error(error?.message ?? "Not authorized to invite members with this role/scope");
+  }
+
+  await writeAuditLog({
+    actorProfileId: user.id,
+    action: "invitation.created",
+    targetType: "invitation",
+    targetId: invitation.id,
+    organizationId: organization.id,
+    hotelId: parsed.hotelId || null,
+    after: { email: parsed.email, roleKey: parsed.roleKey },
+  });
+
+  revalidatePath(`/o/${organization.slug}/team`);
+}
+
+const changeRoleSchema = z.object({
+  orgSlug: z.string().min(1),
+  membershipId: z.string().min(1),
+  roleKey: z.enum(roleKeys),
+});
+
+export async function changeRoleAction(formData: FormData): Promise<void> {
+  const result = changeRoleSchema.safeParse({
+    orgSlug: formData.get("orgSlug"),
+    membershipId: formData.get("membershipId"),
+    roleKey: formData.get("roleKey"),
+  });
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  const parsed = result.data;
+  const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: before } = await supabase
+    .from("memberships")
+    .select("role_key")
+    .eq("id", parsed.membershipId)
+    .single();
+
+  const { data, error } = await supabase
+    .from("memberships")
+    .update({ role_key: parsed.roleKey })
+    .eq("id", parsed.membershipId)
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Not authorized to change this membership's role");
+  }
+
+  await writeAuditLog({
+    actorProfileId: user.id,
+    action: "membership.role_changed",
+    targetType: "membership",
+    targetId: parsed.membershipId,
+    organizationId: organization.id,
+    before,
+    after: { roleKey: parsed.roleKey },
+  });
+
+  revalidatePath(`/o/${organization.slug}/team`);
+}
+
+const revokeSchema = z.object({
+  orgSlug: z.string().min(1),
+  membershipId: z.string().min(1),
+});
+
+export async function revokeMemberAction(formData: FormData): Promise<void> {
+  const result = revokeSchema.safeParse({
+    orgSlug: formData.get("orgSlug"),
+    membershipId: formData.get("membershipId"),
+  });
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  const parsed = result.data;
+  const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("memberships")
+    .update({ status: "revoked" })
+    .eq("id", parsed.membershipId)
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Not authorized to revoke this membership");
+  }
+
+  await writeAuditLog({
+    actorProfileId: user.id,
+    action: "membership.revoked",
+    targetType: "membership",
+    targetId: parsed.membershipId,
+    organizationId: organization.id,
+  });
+
+  revalidatePath(`/o/${organization.slug}/team`);
+}
+
+const assignDepartmentSchema = z.object({
+  orgSlug: z.string().min(1),
+  membershipId: z.string().min(1),
+  departmentId: z.string().min(1),
+});
+
+// Department assignment only applies to hotel-scoped memberships (a
+// department belongs to one specific hotel) — resolved from the membership
+// row itself, not trusted from the form, so the permission check is scoped
+// to the membership's actual hotel.
+export async function assignDepartmentAction(formData: FormData): Promise<void> {
+  const result = assignDepartmentSchema.safeParse({
+    orgSlug: formData.get("orgSlug"),
+    membershipId: formData.get("membershipId"),
+    departmentId: formData.get("departmentId"),
+  });
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  const parsed = result.data;
+  const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
+
+  const supabase = await createClient();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("hotel_id")
+    .eq("id", parsed.membershipId)
+    .single();
+
+  if (!membership?.hotel_id) {
+    throw new Error("Only hotel-scoped memberships can be assigned to a department");
+  }
+
+  const user = await requirePermission("team.departments.assign", {
+    hotelId: membership.hotel_id,
+    organizationId: organization.id,
+  });
+
+  const { data: assignment, error } = await supabase
+    .from("membership_departments")
+    .insert({ membership_id: parsed.membershipId, department_id: parsed.departmentId })
+    .select("id")
+    .single();
+
+  if (error || !assignment) {
+    throw new Error(error?.message ?? "Failed to assign department");
+  }
+
+  await writeAuditLog({
+    actorProfileId: user.id,
+    action: "membership.department_assigned",
+    targetType: "membership",
+    targetId: parsed.membershipId,
+    organizationId: organization.id,
+    hotelId: membership.hotel_id,
+    after: { departmentId: parsed.departmentId },
+  });
+
+  revalidatePath(`/o/${organization.slug}/team`);
+}
+
+const unassignDepartmentSchema = z.object({
+  orgSlug: z.string().min(1),
+  membershipId: z.string().min(1),
+  departmentId: z.string().min(1),
+});
+
+export async function unassignDepartmentAction(formData: FormData): Promise<void> {
+  const result = unassignDepartmentSchema.safeParse({
+    orgSlug: formData.get("orgSlug"),
+    membershipId: formData.get("membershipId"),
+    departmentId: formData.get("departmentId"),
+  });
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid input");
+  }
+  const parsed = result.data;
+  const organization = await getOrganizationBySlugOrNotFound(parsed.orgSlug);
+
+  const supabase = await createClient();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("hotel_id")
+    .eq("id", parsed.membershipId)
+    .single();
+
+  if (!membership?.hotel_id) {
+    throw new Error("Only hotel-scoped memberships can be unassigned from a department");
+  }
+
+  const user = await requirePermission("team.departments.assign", {
+    hotelId: membership.hotel_id,
+    organizationId: organization.id,
+  });
+
+  const { error } = await supabase
+    .from("membership_departments")
+    .delete()
+    .eq("membership_id", parsed.membershipId)
+    .eq("department_id", parsed.departmentId);
+
+  if (error) {
+    throw new Error(`Failed to unassign department: ${error.message}`);
+  }
+
+  await writeAuditLog({
+    actorProfileId: user.id,
+    action: "membership.department_unassigned",
+    targetType: "membership",
+    targetId: parsed.membershipId,
+    organizationId: organization.id,
+    hotelId: membership.hotel_id,
+    before: { departmentId: parsed.departmentId },
+  });
+
+  revalidatePath(`/o/${organization.slug}/team`);
+}

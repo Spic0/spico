@@ -1,0 +1,97 @@
+// Spico semantic design tokens (Phase-1 foundation of the enterprise-polish
+// program — see docs/ui-audit.md). This is the substrate the whole component
+// system consumes. Rules:
+//   * Every Spico component references THESE tokens, never a raw hex.
+//   * Light values below are the EXACT hex the components hardcoded before this
+//     refactor, so light mode has zero visual regression.
+//   * Dark values are derived from the template's own dark palette
+//     (styles/elements/_dark-version.scss: body #090E18, panels #121B32/#151A24,
+//     translucent #e5e4ff borders) so dark mode reads as one coherent theme.
+//   * These are layered on top of the brand tokens in _variables.scss
+//     (--color-primary/-heading-1/-body/-success/-danger/-warning/-info); we
+//     alias, not replace, those.
+
+:root {
+  // Surfaces (background elevation)
+  --surface-1: #ffffff;             // primary card / panel / table surface
+  --surface-2: #f7f7ff;             // subtle fill: callout, hover, chip, page-in-public
+  --surface-3: #fbfbff;             // recessed area (conversation thread)
+  --surface-accent-soft: #f1f0ff;   // soft primary tint (outbound message bubble)
+  --surface-inverse: #1f1f25;       // intentionally-dark surface (code / secret reveal) — constant across themes
+  --text-on-inverse: #e5e4ff;       // text on --surface-inverse — constant across themes
+
+  // Borders
+  --border-subtle: #e5e4ff;         // the ubiquitous 1px divider/border
+  --border-strong: #c9c7f5;         // emphasized border (current plan, focus ring base)
+  --focus-ring: rgba(63, 62, 237, 0.22); // focus halo around form controls/buttons
+
+  // Text (aliased to the brand tokens so light is unchanged; dark overrides the
+  // brand tokens below, so these follow automatically)
+  --text-strong: var(--color-heading-1);
+  --text-body: var(--color-body);
+  --text-muted: #497696;            // == the pre-refactor .spico-muted colour
+
+  // Status: -fg for text/icon, -soft for chip/badge background
+  --status-success-fg: var(--color-success);
+  --status-success-soft: #e7f7ec;
+  --status-warning-fg: var(--color-warning);
+  --status-warning-soft: #fff1e6;
+  --status-danger-fg: var(--color-danger);
+  --status-danger-soft: #ffe9e9;
+  --status-info-fg: var(--color-info);
+  --status-info-soft: #e6f5fc;
+  --status-neutral-fg: #497696;
+  --status-neutral-soft: #f0f2f5;
+
+  // Radius / shadow / spacing scale
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 20px;
+  --shadow-sm: 0 1px 2px rgba(8, 58, 94, 0.06);
+  --shadow-md: 0 4px 16px rgba(8, 58, 94, 0.08);
+  --shadow-lg: 0 12px 32px rgba(8, 58, 94, 0.12);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 30px;
+}
+
+// Dark theme: override the brand text tokens (so ALL template typography in the
+// content area becomes readable, not just Spico components) plus every semantic
+// token. The per-selector chrome overrides in _dark-version.scss (sidebar,
+// header, profile menu, auth forms) still apply on top and are unaffected.
+[data-theme="dark"] {
+  // Make base typography readable on the dark body (#090E18)
+  --color-heading-1: #ffffff;
+  --color-body: #c5c5c5;
+
+  --surface-1: #151a24;
+  --surface-2: #121b32;
+  --surface-3: #0f1626;
+  --surface-accent-soft: #1c1c39;
+  // --surface-inverse / --text-on-inverse intentionally stay constant
+
+  --border-subtle: rgba(229, 228, 255, 0.10);
+  --border-strong: rgba(229, 228, 255, 0.22);
+  --focus-ring: rgba(122, 121, 255, 0.30);
+
+  --text-muted: #9aa7b4;
+
+  --status-success-fg: #56d07d;
+  --status-success-soft: rgba(62, 183, 94, 0.15);
+  --status-warning-fg: #ffa866;
+  --status-warning-soft: rgba(255, 143, 60, 0.15);
+  --status-danger-fg: #ff5a5c;
+  --status-danger-soft: rgba(255, 0, 3, 0.15);
+  --status-info-fg: #4bbde6;
+  --status-info-soft: rgba(27, 162, 219, 0.15);
+  --status-neutral-fg: #9aa7b4;
+  --status-neutral-soft: rgba(229, 228, 255, 0.08);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.50);
+}

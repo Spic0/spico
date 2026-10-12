@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+build/
+
+# local env files (secrets — never commit)
+.env
+.env*.local
+
+# typescript / build artifacts
+*.tsbuildinfo
+next-env.d.ts
+
+# vendor template bundle (large binary zips, kept locally only)
+WebTemplate/intellect-ai-dashboard-template/
+WebTemplate/__MACOSX/
+
+# machine-specific
+.npmrc
+.DS_Store
+*.pem
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+
+# claude local settings
+.claude/settings.local.json

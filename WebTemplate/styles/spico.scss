@@ -1,0 +1,415 @@
+// Spico-specific additions layered on top of the ported Intellect AI
+// Dashboard design system. Every colour/surface/border here now references the
+// semantic token layer (styles/spico-tokens.scss) rather than a raw hex, so all
+// of these components are theme-aware (light + dark) with no per-selector dark
+// overrides. See docs/ui-audit.md (RC-1/RC-2) for why.
+
+// The template's _variables.scss references 'Space Grotesk' but never
+// actually loaded it (likely a CDN <link> in the original static HTML that
+// didn't survive the port). Loaded via next/font/google in app/layout.tsx;
+// this override — later in the cascade than _variables.scss — points the
+// existing tokens at the self-hosted font instead of falling back silently.
+:root {
+  --font-primary: var(--font-space-grotesk), sans-serif;
+  --font-secondary: var(--font-space-grotesk), sans-serif;
+}
+
+// Text wordmark that replaces the ported template's raster logo image.
+.spico-wordmark {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-primary);
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+  color: var(--color-primary);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.left-side-bar .single-menu .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.left-side-bar .single-menu.active .icon,
+.left-side-bar .single-menu:hover .icon {
+  color: var(--color-primary);
+}
+
+.left-side-bar .bottom-user .user-wrapper .info span {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.spico-sidebar-avatar {
+  font-size: 32px;
+  color: var(--color-primary);
+}
+
+.spico-plain-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+
+  li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+.spico-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+
+  th,
+  td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  th {
+    color: var(--text-strong);
+    font-weight: 600;
+  }
+
+  // Mobile: let wide tables (team, reservations, API keys, inbox …) scroll
+  // horizontally inside their own box instead of forcing the whole page to
+  // scroll sideways or clipping columns. See docs/ui-bug-audit.md (BUG-05).
+  @media (max-width: 767px) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.spico-inline-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.spico-form-error {
+  color: var(--color-danger);
+  margin: 10px 0;
+}
+
+.spico-form-success {
+  color: var(--color-success);
+  margin: 10px 0;
+}
+
+.spico-muted {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spico-settings-form {
+  max-width: 640px;
+
+  .input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+
+    label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-strong);
+    }
+  }
+}
+
+.spico-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px 16px;
+  margin: 12px 0;
+
+  .form-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+}
+
+.spico-badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  .spico-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    font-size: 13px;
+
+    button {
+      border: none;
+      background: none;
+      color: var(--color-danger);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0;
+    }
+  }
+}
+
+.spico-completion-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  overflow: hidden;
+  margin: 8px 0;
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--color-primary);
+  }
+}
+
+.spico-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.spico-tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin: 20px 0 30px;
+}
+
+.spico-tab-nav-item {
+  padding: 10px 16px;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-body);
+  font-weight: 500;
+  font-size: 14px;
+
+  &:hover {
+    background: var(--surface-2);
+  }
+
+  &.active {
+    color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary);
+  }
+}
+
+.spico-callout {
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  font-size: 14px;
+  margin: 16px 0;
+
+  strong {
+    color: var(--text-strong);
+  }
+}
+
+.spico-kpi-card {
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+
+  .spico-kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-strong);
+    display: block;
+  }
+
+  .spico-kpi-label {
+    font-size: 13px;
+    color: var(--text-body);
+  }
+}
+
+// Card container for a form or a self-contained block (e.g. a KB article
+// editor or an upload form). Similar to .spico-callout but for interactive
+// content rather than an informational note.
+.spico-panel {
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  margin: 16px 0;
+
+  textarea {
+    width: 100%;
+  }
+}
+
+// Responsive two-up layout that collapses to a single column when narrow.
+.spico-two-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.spico-badge-active {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+}
+
+.mt--10 {
+  margin-top: 10px;
+}
+
+.mb--10 {
+  margin-bottom: 10px;
+}
+
+// Inbox conversation thread — message bubbles, inbound left / outbound right.
+.spico-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+}
+
+.spico-msg {
+  max-width: 72%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+
+  .spico-msg-meta {
+    font-size: 12px;
+    color: var(--text-body);
+    margin-bottom: 4px;
+  }
+
+  .spico-msg-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+.spico-msg-in {
+  align-self: flex-start;
+  background: var(--surface-1);
+}
+
+.spico-msg-out {
+  align-self: flex-end;
+  background: var(--surface-accent-soft);
+}
+
+// Public guest-facing booking engine shell.
+.spico-public {
+  min-height: 100vh;
+  background: var(--surface-2);
+  padding: 40px 16px;
+}
+
+.spico-book-container {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.spico-book-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+// One-time secret reveal (API keys, webhook signing secrets). Intentionally a
+// constant dark surface in both themes (it reads as a code block).
+.spico-key-reveal {
+  display: block;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  font-family: monospace;
+  font-size: 13px;
+  word-break: break-all;
+  margin-top: 8px;
+}
+
+// Billing pricing-tier cards (ported ManageSubscription layout, M10).
+.spico-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.spico-plan-card {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spico-plan-card-current {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.spico-plan-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+// Native <details>/<summary> accordion — no JS needed.
+.spico-faq {
+  margin: 16px 0;
+}
+
+.spico-faq-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-strong);
+  }
+
+  p {
+    margin: 10px 0 0;
+    color: var(--text-body);
+  }
+}

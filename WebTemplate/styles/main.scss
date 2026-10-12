@@ -1,0 +1,32 @@
+// Spico global stylesheet.
+// Ported from the Intellect AI Dashboard template (see docs/template-audit.md).
+// Bootstrap + the template's SCSS design tokens are kept as-is per the approved
+// styling decision (docs/assumptions.md) rather than converting to Tailwind.
+
+@import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
+@import "./fontawesome-6.css";
+
+@import "./default/variables";
+@import "./default/typography";
+@import "./default/spacing";
+@import "./default/reset";
+@import "./default/forms";
+@import "./default/mixins";
+@import "./default/shortcode";
+@import "./default/animations";
+@import "./default/text-animation";
+@import "./default/sal";
+
+@import "./elements/header";
+@import "./elements/common";
+@import "./elements/buttons";
+@import "./elements/home";
+@import "./elements/registration";
+@import "./elements/modal";
+@import "./elements/tooltip";
+@import "./elements/footer";
+@import "./elements/dark-version";
+
+@import "./spico-tokens"; // Semantic design-token layer (surfaces/borders/text/status/radius/shadow) — see docs/ui-audit.md.
+@import "./spico"; // Spico-specific additions layered on top of the ported design system.
+@import "./spico-components"; // Standardized components (buttons/chips/cards) — Phase 2, see docs/ui-audit.md.
