@@ -1291,6 +1291,8 @@ export interface Database {
           total_amount: number;
           currency: string;
           source: string;
+          conversation_id: string | null;
+          call_id: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -1314,6 +1316,8 @@ export interface Database {
           total_amount?: number;
           currency?: string;
           source?: string;
+          conversation_id?: string | null;
+          call_id?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -1334,6 +1338,8 @@ export interface Database {
           total_amount: number;
           currency: string;
           source: string;
+          conversation_id: string | null;
+          call_id: string | null;
           notes: string | null;
           is_test_data: boolean;
         }>;
@@ -1430,6 +1436,7 @@ export interface Database {
           created_at: string;
           updated_at: string;
           created_by: string | null;
+          is_test_data: boolean;
         };
         Insert: {
           id?: string;
@@ -1452,6 +1459,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
+          is_test_data?: boolean;
         };
         Update: Partial<{
           disposition: string | null;
@@ -1461,6 +1469,7 @@ export interface Database {
           answered_at: string | null;
           ended_at: string | null;
           duration_seconds: number;
+          is_test_data: boolean;
         }>;
         Relationships: [];
       };

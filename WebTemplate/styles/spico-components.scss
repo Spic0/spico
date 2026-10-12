@@ -293,3 +293,178 @@
 .spico-plan-card:hover {
   box-shadow: var(--shadow-md);
 }
+
+// ---------------------------------------------------------------------------
+// Reservations month calendar (M13). Token-driven and theme-aware. Below 768px
+// the per-day pills collapse to a single count badge so cells stay tappable.
+// ---------------------------------------------------------------------------
+.spico-cal {
+  .spico-cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .spico-cal-nav {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .spico-cal-weekdays,
+  .spico-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--space-1);
+  }
+
+  .spico-cal-weekday {
+    padding: var(--space-1) var(--space-2);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .spico-cal-grid {
+    margin-top: var(--space-1);
+  }
+}
+
+.spico-cal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-strong);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+
+  &:hover {
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &.is-outside {
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+
+  &.is-today .spico-cal-daynum {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  &.is-selected {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
+  }
+}
+
+.spico-cal-daynum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.spico-cal-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.spico-cal-pill {
+  display: block;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &.is-success { color: var(--status-success-fg); background: var(--status-success-soft); }
+  &.is-warning { color: var(--status-warning-fg); background: var(--status-warning-soft); }
+  &.is-danger  { color: var(--status-danger-fg);  background: var(--status-danger-soft); }
+  &.is-info    { color: var(--status-info-fg);    background: var(--status-info-soft); }
+  &.is-neutral { color: var(--status-neutral-fg); background: var(--status-neutral-soft); }
+}
+
+.spico-cal-more {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+// Mobile-only count badge; a solid primary pill (white text, ~6.5:1 in both
+// themes) that replaces the pills under 768px.
+.spico-cal-count {
+  display: none;
+  align-self: flex-start;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .spico-cal-cell {
+    min-height: 56px;
+  }
+
+  .spico-cal-pills {
+    display: none;
+  }
+
+  .spico-cal-count {
+    display: inline-block;
+  }
+}
+
+// Source/origin bits — shared by the calendar day panel and the reservation
+// detail Origin panel.
+.spico-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  i {
+    color: var(--text-muted);
+  }
+}
+
+.spico-vip {
+  color: var(--status-warning-fg);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.spico-origin-link {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}

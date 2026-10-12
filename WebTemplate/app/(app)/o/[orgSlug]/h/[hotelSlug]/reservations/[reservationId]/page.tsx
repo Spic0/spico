@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { getOrganizationBySlugOrNotFound, getHotelBySlugOrNotFound } from "@/lib/data";
 import { requirePermission, hasPermission } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
-import { OCCUPYING_STATUSES, formatMoney, nightsBetween } from "@/lib/pms";
+import { OCCUPYING_STATUSES, formatMoney, nightsBetween, reservationSource } from "@/lib/pms";
+import { channelTypeLabel, channelTypeIcon } from "@/lib/inboxChannels";
 import { computeFolioBalance, folioLineCategoryLabel, paymentMethodLabel } from "@/lib/folio";
 import { StatusChip } from "@/components/ui/StatusChip";
 import {
@@ -32,12 +33,40 @@ export default async function ReservationDetailPage({
   const { data: r } = await supabase
     .from("reservations")
     .select(
-      "id, confirmation_code, guest_id, room_type_id, room_id, rate_plan_id, check_in_date, check_out_date, adults, children, status, total_amount, currency, source, notes",
+      "id, confirmation_code, guest_id, room_type_id, room_id, rate_plan_id, check_in_date, check_out_date, adults, children, status, total_amount, currency, source, conversation_id, call_id, notes",
     )
     .eq("id", reservationId)
     .eq("hotel_id", hotel.id)
     .single();
   if (!r) notFound();
+
+  // Origin: the conversation or call this booking came from. Both are
+  // RLS-gated — a user without inbox.view / calls.read sees null here and the
+  // Origin panel then shows just the source label.
+  const [{ data: originConversation }, { data: originCall }] = await Promise.all([
+    r.conversation_id
+      ? supabase.from("conversations").select("id, subject, channel_id").eq("id", r.conversation_id).maybeSingle()
+      : Promise.resolve({ data: null as { id: string; subject: string | null; channel_id: string } | null }),
+    r.call_id
+      ? supabase
+          .from("calls")
+          .select("id, direction, from_number, to_number, started_at, duration_seconds")
+          .eq("id", r.call_id)
+          .maybeSingle()
+      : Promise.resolve({
+          data: null as {
+            id: string;
+            direction: string;
+            from_number: string | null;
+            to_number: string | null;
+            started_at: string;
+            duration_seconds: number;
+          } | null,
+        }),
+  ]);
+  const { data: originChannel } = originConversation
+    ? await supabase.from("channels").select("channel_type, name").eq("id", originConversation.channel_id).maybeSingle()
+    : { data: null as { channel_type: string; name: string } | null };
 
   const [{ data: guest }, { data: roomType }, { data: assignedRoom }] = await Promise.all([
     supabase.from("guests").select("first_name, last_name, email, phone, vip").eq("id", r.guest_id).single(),
@@ -99,9 +128,11 @@ export default async function ReservationDetailPage({
   }
   const balance = computeFolioBalance({ lineItems, payments });
 
-  const base = `/o/${orgSlug}/h/${hotelSlug}/reservations`;
+  const hotelBase = `/o/${orgSlug}/h/${hotelSlug}`;
+  const base = `${hotelBase}/reservations`;
   const nights = nightsBetween(r.check_in_date, r.check_out_date);
   const isClosed = ["checked_out", "cancelled", "no_show"].includes(r.status);
+  const source = reservationSource(r.source);
 
   return (
     <div className="pt--40">
@@ -128,10 +159,49 @@ export default async function ReservationDetailPage({
           {nights === 1 ? "" : "s"}) · {r.adults} adult(s), {r.children} child(ren)
         </p>
         <p className="spico-muted">
-          Room: {assignedRoom?.room_number ?? "not assigned"} · Total: {formatMoney(r.total_amount, r.currency)} ·
-          Source: {r.source}
+          Room: {assignedRoom?.room_number ?? "not assigned"} · Total: {formatMoney(r.total_amount, r.currency)}
         </p>
         {r.notes && <p>{r.notes}</p>}
+      </div>
+
+      <div className="spico-panel">
+        <strong>Origin</strong>
+        <div className="mt--10">
+          <span className="spico-source">
+            <i className={source.icon} aria-hidden="true" /> {source.label}
+          </span>
+        </div>
+
+        {originConversation && (
+          <div className="spico-origin-link">
+            <span className="spico-source">
+              <i className={channelFaClass(originChannel?.channel_type)} aria-hidden="true" />{" "}
+              {originChannel ? channelTypeLabel(originChannel.channel_type) : "Conversation"}
+            </span>
+            {originConversation.subject && <div className="spico-muted">{originConversation.subject}</div>}
+            <Link href={`${hotelBase}/inbox/${originConversation.id}`} className="rts-btn btn-secondary btn-sm mt--10">
+              <i className="fa-solid fa-up-right-from-square" aria-hidden="true" /> Open conversation
+            </Link>
+          </div>
+        )}
+
+        {originCall && (
+          <div className="spico-origin-link">
+            <span className="spico-source">
+              <i className="fa-solid fa-phone" aria-hidden="true" />{" "}
+              {originCall.direction === "inbound" ? "Inbound" : "Outbound"} call
+              {originCall.from_number || originCall.to_number
+                ? ` · ${originCall.direction === "inbound" ? originCall.from_number : originCall.to_number}`
+                : ""}
+            </span>
+            <div className="spico-muted">
+              {new Date(originCall.started_at).toLocaleString()} · {formatDuration(originCall.duration_seconds)}
+            </div>
+            <Link href={`${hotelBase}/calls/${originCall.id}`} className="rts-btn btn-secondary btn-sm mt--10">
+              <i className="fa-solid fa-up-right-from-square" aria-hidden="true" /> Open call recording
+            </Link>
+          </div>
+        )}
       </div>
 
       {canManage && !isClosed && (
@@ -356,4 +426,19 @@ function StatusForm({
       </button>
     </form>
   );
+}
+
+// Font Awesome class for a channel type. channelTypeIcon() returns the bare
+// glyph name; WhatsApp/Viber are brand glyphs and need the fa-brands prefix.
+function channelFaClass(channelType: string | undefined): string {
+  if (!channelType) return "fa-solid fa-inbox";
+  const icon = channelTypeIcon(channelType);
+  const brand = icon === "fa-whatsapp" || icon === "fa-viber";
+  return `${brand ? "fa-brands" : "fa-solid"} ${icon}`;
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}m ${String(rest).padStart(2, "0")}s`;
 }

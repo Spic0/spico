@@ -15,6 +15,7 @@ const TEST_DATA_TABLES = [
   "channels",
   "conversations",
   "messages",
+  "calls",
   "booking_settings",
 ] as const;
 

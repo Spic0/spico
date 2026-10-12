@@ -77,3 +77,55 @@ export function formatMoney(amount: number | null | undefined, currency: string)
   const value = typeof amount === "number" ? amount : 0;
   return `${currency} ${value.toFixed(2)}`;
 }
+
+// Where a reservation originated. `source` is free text on the row (direct,
+// booking_engine, api, test_data) plus the channel values we now tag bookings
+// with when they come from the inbox/phone (email, sms, whatsapp, viber,
+// web_chat, phone). Returns a label and a FULL Font Awesome class (prefix
+// included — WhatsApp/Viber are brand glyphs). Unknown source → raw text.
+export function reservationSource(source: string): { label: string; icon: string } {
+  const map: Record<string, { label: string; icon: string }> = {
+    direct: { label: "Direct", icon: "fa-solid fa-hotel" },
+    booking_engine: { label: "Booking engine", icon: "fa-solid fa-globe" },
+    api: { label: "API", icon: "fa-solid fa-code" },
+    email: { label: "Email", icon: "fa-solid fa-envelope" },
+    sms: { label: "SMS", icon: "fa-solid fa-comment-sms" },
+    whatsapp: { label: "WhatsApp", icon: "fa-brands fa-whatsapp" },
+    viber: { label: "Viber", icon: "fa-brands fa-viber" },
+    web_chat: { label: "Web chat", icon: "fa-solid fa-comments" },
+    phone: { label: "Phone", icon: "fa-solid fa-phone" },
+    test_data: { label: "Test data", icon: "fa-solid fa-flask" },
+  };
+  return map[source] ?? { label: source, icon: "fa-solid fa-circle-question" };
+}
+
+// Add n days to an ISO date (YYYY-MM-DD) in UTC, returning an ISO date. Used
+// for calendar navigation and seeded-date arithmetic so results never depend on
+// the server's local timezone.
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// The days of a month-view calendar grid for "YYYY-MM": full weeks starting on
+// Monday that cover the whole month, so the result is always a multiple of 7
+// (e.g. Oct 2026 → 35 days from 2026-09-28; Mar 2026 → 42; Feb 2027 → 28).
+export function monthGridDays(month: string): string[] {
+  const year = Number(month.slice(0, 4));
+  const mon = Number(month.slice(5, 7));
+  const first = new Date(Date.UTC(year, mon - 1, 1));
+  const last = new Date(Date.UTC(year, mon, 0));
+  // (getUTCDay() + 6) % 7 maps Sun..Sat (0..6) to Mon..Sun (0..6).
+  const leading = (first.getUTCDay() + 6) % 7;
+  const trailing = 6 - ((last.getUTCDay() + 6) % 7);
+  const start = new Date(first);
+  start.setUTCDate(first.getUTCDate() - leading);
+  const end = new Date(last);
+  end.setUTCDate(last.getUTCDate() + trailing);
+  const days: string[] = [];
+  for (const d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
